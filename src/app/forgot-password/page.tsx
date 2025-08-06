@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState } from "react";
@@ -23,13 +24,13 @@ export default function ForgotPasswordPage() {
     try {
       await sendPasswordResetEmail(auth, email);
       toast({
-        title: "Password Reset Email Sent",
-        description: "Please check your inbox to reset your password.",
+        title: "Email Pengaturan Ulang Kata Sandi Terkirim",
+        description: "Silakan periksa kotak masuk Anda untuk mengatur ulang kata sandi Anda.",
       });
     } catch (error: any) {
       toast({
         variant: "destructive",
-        title: "Error",
+        title: "Terjadi Kesalahan",
         description: error.message,
       });
     } finally {
@@ -40,8 +41,8 @@ export default function ForgotPasswordPage() {
   return (
     <AuthLayout>
       <CardHeader>
-        <CardTitle className="text-2xl">Forgot Password</CardTitle>
-        <CardDescription>Enter your email and we'll send you a link to reset your password.</CardDescription>
+        <CardTitle className="text-2xl">Lupa Kata Sandi</CardTitle>
+        <CardDescription>Masukkan email Anda dan kami akan mengirimkan tautan untuk mengatur ulang kata sandi Anda.</CardDescription>
       </CardHeader>
       <form onSubmit={handleResetPassword}>
         <CardContent className="space-y-4">
@@ -53,12 +54,12 @@ export default function ForgotPasswordPage() {
         <CardFooter className="flex flex-col gap-4">
           <Button type="submit" className="w-full" disabled={loading}>
             {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-            Send Reset Link
+            Kirim Tautan Atur Ulang
           </Button>
           <div className="text-center text-sm">
-            Remembered your password?{" "}
+            Ingat kata sandi Anda?{" "}
             <Link href="/login" passHref className="underline">
-              Login
+              Masuk
             </Link>
           </div>
         </CardFooter>

@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState } from "react";
@@ -26,14 +27,14 @@ export default function LoginPage() {
     try {
       await signInWithEmailAndPassword(auth, email, password);
       toast({
-        title: "Login Successful",
-        description: "Welcome back!",
+        title: "Masuk Berhasil",
+        description: "Selamat datang kembali!",
       });
       router.push("/");
     } catch (error: any) {
       toast({
         variant: "destructive",
-        title: "Login Failed",
+        title: "Gagal Masuk",
         description: error.message,
       });
     } finally {
@@ -44,8 +45,8 @@ export default function LoginPage() {
   return (
     <AuthLayout>
       <CardHeader>
-        <CardTitle className="text-2xl">Login</CardTitle>
-        <CardDescription>Enter your email below to login to your account.</CardDescription>
+        <CardTitle className="text-2xl">Masuk</CardTitle>
+        <CardDescription>Masukkan email Anda di bawah ini untuk masuk ke akun Anda.</CardDescription>
       </CardHeader>
       <form onSubmit={handleLogin}>
         <CardContent className="space-y-4">
@@ -55,9 +56,9 @@ export default function LoginPage() {
           </div>
           <div className="space-y-2">
             <div className="flex items-center">
-              <Label htmlFor="password">Password</Label>
+              <Label htmlFor="password">Kata Sandi</Label>
               <Link href="/forgot-password" passHref className="ml-auto inline-block text-sm underline">
-                Forgot your password?
+                Lupa kata sandi Anda?
               </Link>
             </div>
             <Input id="password" type="password" required value={password} onChange={(e) => setPassword(e.target.value)} />
@@ -66,12 +67,12 @@ export default function LoginPage() {
         <CardFooter className="flex flex-col gap-4">
           <Button type="submit" className="w-full" disabled={loading}>
             {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-            Login
+            Masuk
           </Button>
           <div className="text-center text-sm">
-            Don&apos;t have an account?{" "}
+            Belum punya akun?{" "}
             <Link href="/register" passHref className="underline">
-              Sign up
+              Daftar
             </Link>
           </div>
         </CardFooter>

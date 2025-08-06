@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useEffect, useState } from "react";
@@ -45,7 +46,7 @@ export default function HistoryPage() {
     <AppLayout>
       <Card>
         <CardHeader>
-          <CardTitle>Question History</CardTitle>
+          <CardTitle>Riwayat Pertanyaan</CardTitle>
         </CardHeader>
         <CardContent>
           {sortedHistory.length > 0 ? (
@@ -63,11 +64,11 @@ export default function HistoryPage() {
                   <AccordionContent>
                     <div className="space-y-4 p-4 bg-muted/50 rounded-lg">
                       <div>
-                        <h4 className="font-semibold mb-2">Your Question:</h4>
+                        <h4 className="font-semibold mb-2">Pertanyaan Anda:</h4>
                         <p className="text-sm whitespace-pre-wrap">{item.questionText}</p>
                       </div>
                       <div>
-                        <h4 className="font-semibold mb-2">AI Answer:</h4>
+                        <h4 className="font-semibold mb-2">Jawaban AI:</h4>
                         <div className="prose prose-sm max-w-none text-sm whitespace-pre-wrap">{item.answer}</div>
                       </div>
                     </div>
@@ -76,7 +77,7 @@ export default function HistoryPage() {
               ))}
             </Accordion>
           ) : (
-            <p className="text-muted-foreground text-center">You have no question history yet.</p>
+            <p className="text-muted-foreground text-center">Anda belum memiliki riwayat pertanyaan.</p>
           )}
         </CardContent>
       </Card>

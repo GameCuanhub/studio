@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState } from "react";
@@ -26,8 +27,8 @@ export default function RegisterPage() {
     if (!name) {
       toast({
         variant: "destructive",
-        title: "Registration Failed",
-        description: "Please enter your name.",
+        title: "Pendaftaran Gagal",
+        description: "Silakan masukkan nama Anda.",
       });
       return;
     }
@@ -39,14 +40,14 @@ export default function RegisterPage() {
       });
 
       toast({
-        title: "Registration Successful",
-        description: "Your account has been created.",
+        title: "Pendaftaran Berhasil",
+        description: "Akun Anda telah dibuat.",
       });
       router.push("/");
     } catch (error: any) {
       toast({
         variant: "destructive",
-        title: "Registration Failed",
+        title: "Pendaftaran Gagal",
         description: error.message,
       });
     } finally {
@@ -57,13 +58,13 @@ export default function RegisterPage() {
   return (
     <AuthLayout>
       <CardHeader>
-        <CardTitle className="text-2xl">Sign Up</CardTitle>
-        <CardDescription>Enter your information to create an account.</CardDescription>
+        <CardTitle className="text-2xl">Daftar</CardTitle>
+        <CardDescription>Masukkan informasi Anda untuk membuat akun.</CardDescription>
       </CardHeader>
       <form onSubmit={handleRegister}>
         <CardContent className="space-y-4">
           <div className="space-y-2">
-            <Label htmlFor="name">Name</Label>
+            <Label htmlFor="name">Nama</Label>
             <Input id="name" type="text" placeholder="John Doe" required value={name} onChange={(e) => setName(e.target.value)} />
           </div>
           <div className="space-y-2">
@@ -71,19 +72,19 @@ export default function RegisterPage() {
             <Input id="email" type="email" placeholder="m@example.com" required value={email} onChange={(e) => setEmail(e.target.value)} />
           </div>
           <div className="space-y-2">
-            <Label htmlFor="password">Password</Label>
+            <Label htmlFor="password">Kata Sandi</Label>
             <Input id="password" type="password" required value={password} onChange={(e) => setPassword(e.target.value)} />
           </div>
         </CardContent>
         <CardFooter className="flex flex-col gap-4">
           <Button type="submit" className="w-full" disabled={loading}>
             {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-            Create an account
+            Buat akun
           </Button>
           <div className="text-center text-sm">
-            Already have an account?{" "}
+            Sudah punya akun?{" "}
             <Link href="/login" passHref className="underline">
-              Login
+              Masuk
             </Link>
           </div>
         </CardFooter>

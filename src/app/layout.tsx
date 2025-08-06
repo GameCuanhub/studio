@@ -1,3 +1,4 @@
+
 import type { Metadata } from "next";
 import { PT_Sans } from "next/font/google";
 import "./globals.css";
@@ -12,7 +13,7 @@ const ptSans = PT_Sans({
 
 export const metadata: Metadata = {
   title: "PintarAI",
-  description: "AI assistant to help with school questions",
+  description: "Asisten AI untuk membantu menjawab pertanyaan sekolah",
 };
 
 export default function RootLayout({
@@ -21,7 +22,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" suppressHydrationWarning>
+    <html lang="id" suppressHydrationWarning>
       <head>
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />

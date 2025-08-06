@@ -1,3 +1,4 @@
+
 "use client";
 
 import Link from "next/link";
@@ -32,8 +33,8 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   };
 
   const navItems = [
-    { href: "/", label: "Ask Question", icon: Home },
-    { href: "/history", label: "History", icon: History },
+    { href: "/", label: "Ajukan Pertanyaan", icon: Home },
+    { href: "/history", label: "Riwayat", icon: History },
   ];
   
   const getAvatarFallback = () => {
@@ -43,7 +44,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
     if (user?.email) {
       return user.email.charAt(0).toUpperCase();
     }
-    return 'U';
+    return 'P';
   }
 
 
@@ -86,7 +87,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
             <SheetTrigger asChild>
               <Button size="icon" variant="outline" className="sm:hidden">
                 <PanelLeft className="h-5 w-5" />
-                <span className="sr-only">Toggle Menu</span>
+                <span className="sr-only">Buka Menu</span>
               </Button>
             </SheetTrigger>
             <SheetContent side="left" className="sm:max-w-xs">
@@ -136,7 +137,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
               <DropdownMenuSeparator />
               <DropdownMenuItem onClick={handleLogout}>
                 <LogOut className="mr-2 h-4 w-4" />
-                <span>Logout</span>
+                <span>Keluar</span>
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
