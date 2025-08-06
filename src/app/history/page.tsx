@@ -3,24 +3,23 @@
 
 import { useEffect, useState, useRef } from "react";
 import AppLayout from "@/components/app-layout";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { Button } from "@/components/ui/button";
 import { useLocalStorage } from "@/hooks/use-local-storage";
 import type { HistoryItem } from "@/types";
 import { format } from "date-fns";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Copy, Download, ArrowLeft } from "lucide-react";
+import { Copy, Download, ArrowLeft, History } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import jsPDF from "jspdf";
-import html2canvas from "html2canvas";
 import { useRouter } from "next/navigation";
+import { Logo } from "@/components/logo";
 
 export default function HistoryPage() {
   const [history, setHistory] = useLocalStorage<HistoryItem[]>("pintarai-history", []);
   const [isMounted, setIsMounted] = useState(false);
   const { toast } = useToast();
-  const contentRefs = useRef<(HTMLDivElement | null)[]>([]);
   const router = useRouter();
 
   useEffect(() => {
@@ -40,47 +39,78 @@ ${item.answer}`;
     });
   };
 
-  const handleDownloadPdf = (item: HistoryItem, index: number) => {
-    const content = contentRefs.current[index];
-    if (!content) return;
+  const handleDownloadPdf = (item: HistoryItem) => {
+    const doc = new jsPDF();
+    const pageWidth = doc.internal.pageSize.getWidth();
+    const margin = 15;
+    const contentWidth = pageWidth - margin * 2;
+    let y = 20;
 
-    html2canvas(content, {
-      scale: 2,
-      backgroundColor: document.body.classList.contains('dark') ? '#09090b' : '#ffffff', 
-      useCORS: true,
-    }).then((canvas) => {
-      const imgData = canvas.toDataURL("image/png");
-      const pdf = new jsPDF("p", "mm", "a4");
-      const pdfWidth = pdf.internal.pageSize.getWidth();
-      const pdfHeight = pdf.internal.pageSize.getHeight();
-      const canvasWidth = canvas.width;
-      const canvasHeight = canvas.height;
-      const ratio = canvasWidth / canvasHeight;
-      const width = pdfWidth - 20;
-      let height = width / ratio;
-      if (height > pdfHeight - 20) {
-        height = pdfHeight - 20;
-      }
+    // Header
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(18);
+    doc.text("PintarAI - Dokumen Jawaban", pageWidth / 2, y, { align: "center" });
+    y += 10;
+    doc.setLineWidth(0.5);
+    doc.line(margin, y, pageWidth - margin, y);
+    y += 10;
+    
+    // Metadata
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(10);
+    doc.text(`ID Sesi: ${item.id}`, margin, y);
+    doc.text(`Tanggal: ${format(new Date(item.timestamp), "dd MMMM yyyy, HH:mm")}`, pageWidth - margin, y, { align: "right" });
+    y += 7;
+    doc.text(`Jenjang: ${item.classLevel}`, margin, y);
+    doc.text(`Pelajaran: ${item.subject}`, pageWidth - margin, y, { align: "right" });
+    y += 10;
 
-      pdf.addImage(imgData, "PNG", 10, 10, width, height);
-      pdf.save(`PintarAI - ${item.summary.slice(0, 20)}.pdf`);
-      toast({
+    // Question Section
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(12);
+    doc.text("Pertanyaan Pengguna:", margin, y);
+    y += 6;
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(11);
+    const questionLines = doc.splitTextToSize(item.questionText, contentWidth);
+    doc.text(questionLines, margin, y);
+    y += questionLines.length * 6 + 10;
+
+    // Answer Section
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(12);
+    doc.text("Jawaban dari AI:", margin, y);
+    y += 6;
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(11);
+    const answerLines = doc.splitTextToSize(item.answer, contentWidth);
+    doc.text(answerLines, margin, y);
+    y += answerLines.length * 6 + 15;
+
+    // Footer
+    const pageCount = doc.internal.pages.length;
+    for(let i = 1; i <= pageCount; i++) {
+        doc.setPage(i);
+        doc.setLineWidth(0.2);
+        doc.line(margin, 280, pageWidth - margin, 280);
+        doc.setFontSize(8);
+        doc.text(`Dokumen ini dibuat secara otomatis oleh PintarAI | Halaman ${i} dari ${pageCount}`, pageWidth / 2, 285, { align: "center" });
+    }
+
+    doc.save(`PintarAI - ${item.summary.slice(0, 20)}.pdf`);
+    toast({
         title: "Mengunduh PDF",
         description: "File PDF Anda sedang dibuat.",
-      });
     });
   };
-
+  
   if (!isMounted) {
     return (
       <AppLayout>
         <div className="space-y-4">
           <Skeleton className="h-10 w-1/4" />
           <Card>
-            <CardHeader>
-              <Skeleton className="h-8 w-3/4" />
-            </CardHeader>
-            <CardContent>
+            <CardContent className="p-6">
               <div className="space-y-4">
                 <Skeleton className="h-6 w-full" />
                 <Skeleton className="h-6 w-5/6" />
@@ -111,7 +141,7 @@ ${item.answer}`;
         <CardContent className="p-0">
           {sortedHistory.length > 0 ? (
             <Accordion type="single" collapsible className="w-full">
-              {sortedHistory.map((item, index) => (
+              {sortedHistory.map((item) => (
                 <AccordionItem value={item.id} key={item.id} className="border-secondary">
                   <AccordionTrigger className="hover:no-underline">
                     <div className="flex flex-col items-start text-left">
@@ -122,14 +152,14 @@ ${item.answer}`;
                     </div>
                   </AccordionTrigger>
                   <AccordionContent>
-                    <div ref={el => contentRefs.current[index] = el} className="space-y-6 p-4 bg-secondary/50 rounded-lg">
+                    <div className="space-y-6 p-4 bg-secondary/50 rounded-lg">
                       <div>
                         <h4 className="font-semibold text-base mb-2">Pertanyaan Anda:</h4>
                         <p className="text-sm whitespace-pre-wrap font-sans text-muted-foreground">{item.questionText}</p>
                       </div>
                       <div>
                         <h4 className="font-semibold text-base mb-2">Jawaban AI:</h4>
-                        <div className="prose prose-sm max-w-none text-sm whitespace-pre-wrap font-sans">{item.answer}</div>
+                        <div className="prose prose-sm max-w-none text-sm whitespace-pre-wrap font-sans text-muted-foreground">{item.answer}</div>
                       </div>
                     </div>
                     <div className="mt-4 flex items-center justify-end gap-2">
@@ -137,7 +167,7 @@ ${item.answer}`;
                         <Copy className="mr-2 h-4 w-4" />
                         Salin
                        </Button>
-                       <Button variant="outline" size="sm" onClick={() => handleDownloadPdf(item, index)}>
+                       <Button variant="outline" size="sm" onClick={() => handleDownloadPdf(item)}>
                         <Download className="mr-2 h-4 w-4" />
                         Unduh PDF
                        </Button>
