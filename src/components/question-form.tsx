@@ -19,6 +19,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Loader2, Sparkles, Upload } from "lucide-react";
 import { CLASS_LEVELS, SUBJECTS } from "@/lib/constants";
 import { useToast } from "@/hooks/use-toast";
+import { Skeleton } from "@/components/ui/skeleton";
 
 const formSchema = z.object({
   classLevel: z.string().min(1, "Silakan pilih jenjang kelas."),
