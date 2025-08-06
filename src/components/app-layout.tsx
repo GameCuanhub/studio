@@ -2,11 +2,11 @@
 "use client";
 
 import Link from "next/link";
-import { signOut } from "firebase/auth";
+import { signOut, deleteUser } from "firebase/auth";
 import { auth } from "@/lib/firebase/config";
 import { useAuth } from "@/context/auth-provider";
 import { useRouter, usePathname } from "next/navigation";
-import { Home, History, LogOut, PanelLeft, Settings } from "lucide-react";
+import { Home, History, LogOut, PanelLeft, UserX, Trash2 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -21,15 +21,47 @@ import { Sheet, SheetContent, SheetTitle, SheetTrigger } from "@/components/ui/s
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { Logo } from "./logo";
 import { Avatar, AvatarFallback, AvatarImage } from "./ui/avatar";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
+import { useToast } from "@/hooks/use-toast";
+import { useState } from "react";
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
   const { user } = useAuth();
   const router = useRouter();
   const pathname = usePathname();
+  const { toast } = useToast();
+  const [isDeleteAlertOpen, setIsDeleteAlertOpen] = useState(false);
+
 
   const handleLogout = async () => {
     await signOut(auth);
     router.push("/login");
+  };
+
+  const handleDeleteAccount = async () => {
+    if (!user) return;
+    try {
+      // Clear local storage history first
+      localStorage.removeItem('pintarai-history');
+      
+      // Then delete the user from Firebase Auth
+      await deleteUser(user);
+      
+      toast({
+        title: "Akun Dihapus",
+        description: "Akun Anda dan semua data terkait telah berhasil dihapus.",
+      });
+      router.push("/register"); // Redirect to a neutral page
+    } catch (error: any) {
+        console.error("Error deleting account:", error);
+        toast({
+            variant: "destructive",
+            title: "Gagal Menghapus Akun",
+            description: "Terjadi kesalahan saat mencoba menghapus akun Anda. Silakan coba lagi atau hubungi dukungan.",
+        });
+    } finally {
+        setIsDeleteAlertOpen(false);
+    }
   };
 
   const navItems = [
@@ -49,6 +81,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
 
 
   return (
+    <AlertDialog open={isDeleteAlertOpen} onOpenChange={setIsDeleteAlertOpen}>
     <div className="flex min-h-screen w-full flex-col bg-background">
        <aside className="fixed inset-y-0 left-0 z-10 hidden w-16 flex-col border-r border-secondary bg-background sm:flex">
         <nav className="flex flex-col items-center gap-4 px-2 sm:py-5">
@@ -108,6 +141,12 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
                     <LogOut className="mr-2 h-4 w-4" />
                     <span>Keluar</span>
                 </DropdownMenuItem>
+                 <AlertDialogTrigger asChild>
+                    <DropdownMenuItem className="text-destructive focus:text-destructive">
+                      <UserX className="mr-2 h-4 w-4" />
+                      <span>Hapus Akun</span>
+                    </DropdownMenuItem>
+                </AlertDialogTrigger>
                 </DropdownMenuContent>
             </DropdownMenu>
         </nav>
@@ -155,5 +194,21 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
         </main>
       </div>
     </div>
+    
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle>Apakah Anda benar-benar yakin?</AlertDialogTitle>
+          <AlertDialogDescription>
+            Tindakan ini tidak dapat dibatalkan. Ini akan menghapus akun Anda dan semua riwayat pertanyaan yang tersimpan di perangkat ini secara permanen.
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogCancel>Batal</AlertDialogCancel>
+          <AlertDialogAction onClick={handleDeleteAccount} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+            Ya, Hapus Akun Saya
+          </AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
   );
 }

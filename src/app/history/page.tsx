@@ -10,11 +10,12 @@ import { useLocalStorage } from "@/hooks/use-local-storage";
 import type { HistoryItem } from "@/types";
 import { format } from "date-fns";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Copy, Download, ArrowLeft, History } from "lucide-react";
+import { Copy, Download, ArrowLeft, History, Trash2, ShieldAlert } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import jsPDF from "jspdf";
 import { useRouter } from "next/navigation";
-import { Logo } from "@/components/logo";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
+
 
 export default function HistoryPage() {
   const [history, setHistory] = useLocalStorage<HistoryItem[]>("pintarai-history", []);
@@ -103,6 +104,14 @@ ${item.answer}`;
         description: "File PDF Anda sedang dibuat.",
     });
   };
+
+  const handleClearHistory = () => {
+    setHistory([]);
+    toast({
+        title: "Riwayat Dihapus",
+        description: "Semua riwayat pertanyaan Anda telah dihapus.",
+    });
+  };
   
   if (!isMounted) {
     return (
@@ -127,16 +136,43 @@ ${item.answer}`;
 
   return (
     <AppLayout>
-      <div className="flex items-center gap-4 mb-4">
-        <Button variant="outline" size="icon" onClick={() => router.back()}>
-            <ArrowLeft className="h-4 w-4" />
-            <span className="sr-only">Kembali</span>
-        </Button>
-        <div>
-            <h1 className="text-2xl font-bold tracking-tight">Riwayat Pertanyaan</h1>
-            <p className="text-muted-foreground">Lihat semua pertanyaan yang pernah Anda ajukan sebelumnya.</p>
+        <div className="flex items-start sm:items-center justify-between gap-4 mb-4 flex-col sm:flex-row">
+            <div className="flex items-center gap-4">
+                <Button variant="outline" size="icon" onClick={() => router.back()} className="shrink-0">
+                    <ArrowLeft className="h-4 w-4" />
+                    <span className="sr-only">Kembali</span>
+                </Button>
+                <div>
+                    <h1 className="text-2xl font-bold tracking-tight">Riwayat Pertanyaan</h1>
+                    <p className="text-muted-foreground">Lihat semua pertanyaan yang pernah Anda ajukan sebelumnya.</p>
+                </div>
+            </div>
+            {sortedHistory.length > 0 && (
+                 <AlertDialog>
+                    <AlertDialogTrigger asChild>
+                        <Button variant="destructive" className="w-full sm:w-auto">
+                            <Trash2 />
+                            Hapus Semua Riwayat
+                        </Button>
+                    </AlertDialogTrigger>
+                    <AlertDialogContent>
+                        <AlertDialogHeader>
+                        <AlertDialogTitle>Apakah Anda benar-benar yakin?</AlertDialogTitle>
+                        <AlertDialogDescription>
+                            Tindakan ini tidak dapat dibatalkan. Ini akan menghapus semua riwayat pertanyaan Anda secara permanen dari perangkat ini.
+                        </AlertDialogDescription>
+                        </AlertDialogHeader>
+                        <AlertDialogFooter>
+                        <AlertDialogCancel>Batal</AlertDialogCancel>
+                        <AlertDialogAction onClick={handleClearHistory}>Lanjutkan</AlertDialogAction>
+                        </AlertDialogFooter>
+                    </AlertDialogContent>
+                </AlertDialog>
+            )}
         </div>
-      </div>
+        <p className="text-xs text-muted-foreground mb-4 italic text-center sm:text-left">
+            Info: Riwayat pertanyaan Anda disimpan secara aman di penyimpanan internal browser pada perangkat yang Anda gunakan saat ini.
+        </p>
       <Card className="border-0 shadow-none bg-transparent">
         <CardContent className="p-0">
           {sortedHistory.length > 0 ? (

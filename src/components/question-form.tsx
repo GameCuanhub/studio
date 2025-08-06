@@ -56,7 +56,6 @@ export default function QuestionForm() {
   });
 
   const selectedClassLevel = form.watch("classLevel");
-  const availableSubjects = selectedClassLevel ? SUBJECTS_BY_LEVEL[selectedClassLevel.split(" ")[0] as keyof typeof SUBJECTS_BY_LEVEL] || [] : [];
   
   useEffect(() => {
     form.resetField("subject");
@@ -120,9 +119,9 @@ export default function QuestionForm() {
 
   return (
     <div>
-      <Card className="border-0 shadow-none bg-transparent">
+      <Card className="border-0 shadow-none bg-transparent md:border md:shadow-sm md:bg-card">
         <form onSubmit={form.handleSubmit(onSubmit)}>
-          <CardContent className="p-0">
+          <CardContent className="p-0 md:p-6">
             <Form {...form}>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <FormField
@@ -150,24 +149,27 @@ export default function QuestionForm() {
                 <FormField
                   control={form.control}
                   name="subject"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Mata Pelajaran</FormLabel>
-                      <Select onValueChange={field.onChange} value={field.value} disabled={!selectedClassLevel}>
-                        <FormControl>
-                          <SelectTrigger>
-                            <SelectValue placeholder="Pilih mata pelajaran" />
-                          </SelectTrigger>
-                        </FormControl>
-                        <SelectContent>
-                          {availableSubjects.map((subject) => (
-                            <SelectItem key={subject} value={subject}>{subject}</SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                      <FormMessage />
-                    </FormItem>
-                  )}
+                  render={({ field }) => {
+                    const availableSubjects = selectedClassLevel ? SUBJECTS_BY_LEVEL[selectedClassLevel.split(" ")[0] as keyof typeof SUBJECTS_BY_LEVEL] || [] : [];
+                    return (
+                      <FormItem>
+                        <FormLabel>Mata Pelajaran</FormLabel>
+                        <Select onValueChange={field.onChange} value={field.value} disabled={!selectedClassLevel}>
+                          <FormControl>
+                            <SelectTrigger>
+                              <SelectValue placeholder="Pilih mata pelajaran" />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            {availableSubjects.map((subject) => (
+                              <SelectItem key={subject} value={subject}>{subject}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                        <FormMessage />
+                      </FormItem>
+                    )
+                  }}
                 />
               </div>
               <FormField
@@ -200,7 +202,7 @@ export default function QuestionForm() {
                                 setFileName(e.target.files?.[0]?.name || "");
                             }}
                         />
-                        <div className="flex items-center justify-center w-full px-3 py-2 text-sm text-muted-foreground border border-dashed rounded-md">
+                        <div className="flex items-center justify-center w-full px-3 py-2 text-sm text-muted-foreground border-2 border-dashed rounded-md h-12">
                             <Upload className="mr-2 h-4 w-4" />
                             {fileName || "Pilih file untuk diunggah (gambar, dok, dll.)"}
                         </div>
@@ -229,7 +231,7 @@ export default function QuestionForm() {
       </Card>
 
       {loading && (
-        <Card className="mt-8 bg-secondary">
+        <Card className="mt-8 bg-secondary/50">
             <CardHeader>
                 <CardTitle>AI sedang meracik jawaban...</CardTitle>
                 <CardDescription>Mohon tunggu sebentar, kami sedang memproses pertanyaan Anda.</CardDescription>
@@ -243,18 +245,18 @@ export default function QuestionForm() {
       )}
 
       {result && (
-        <Card className="mt-8 animate-in fade-in-50 bg-secondary">
+        <Card className="mt-8 animate-in fade-in-50 bg-card border shadow-sm">
           <CardHeader>
             <CardTitle>Jawaban yang Dihasilkan AI</CardTitle>
           </CardHeader>
           <CardContent className="space-y-6">
              <div>
                 <h4 className="font-semibold mb-2">Pertanyaan Anda:</h4>
-                <p className="text-sm text-muted-foreground p-4 bg-background/50 rounded-lg whitespace-pre-wrap">{result.questionText}</p>
+                <p className="text-sm text-muted-foreground p-4 bg-secondary/50 rounded-lg whitespace-pre-wrap">{result.questionText}</p>
               </div>
               <div>
                 <h4 className="font-semibold mb-2">Jawabannya:</h4>
-                <div className="prose text-sm p-4 border border-border rounded-lg whitespace-pre-wrap leading-relaxed bg-background/50">{result.answer}</div>
+                <div className="prose prose-sm max-w-none text-sm p-4 border border-border rounded-lg whitespace-pre-wrap leading-relaxed bg-secondary/50">{result.answer}</div>
               </div>
           </CardContent>
         </Card>
