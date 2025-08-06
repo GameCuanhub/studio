@@ -1,22 +1,69 @@
 
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import AppLayout from "@/components/app-layout";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
+import { Button } from "@/components/ui/button";
 import { useLocalStorage } from "@/hooks/use-local-storage";
 import type { HistoryItem } from "@/types";
 import { format } from "date-fns";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Copy, Download } from "lucide-react";
+import { useToast } from "@/hooks/use-toast";
+import jsPDF from "jspdf";
+import html2canvas from "html2canvas";
 
 export default function HistoryPage() {
   const [history, setHistory] = useLocalStorage<HistoryItem[]>("pintarai-history", []);
   const [isMounted, setIsMounted] = useState(false);
+  const { toast } = useToast();
+  const contentRefs = useRef<(HTMLDivElement | null)[]>([]);
 
   useEffect(() => {
     setIsMounted(true);
   }, []);
+
+  const handleCopy = (item: HistoryItem) => {
+    const textToCopy = `Pertanyaan:
+${item.questionText}
+
+Jawaban AI:
+${item.answer}`;
+    navigator.clipboard.writeText(textToCopy);
+    toast({
+      title: "Tersalin!",
+      description: "Riwayat pertanyaan dan jawaban telah disalin ke clipboard.",
+    });
+  };
+
+  const handleDownloadPdf = (item: HistoryItem, index: number) => {
+    const content = contentRefs.current[index];
+    if (!content) return;
+
+    html2canvas(content, {
+      scale: 2,
+      backgroundColor: null,
+    }).then((canvas) => {
+      const imgData = canvas.toDataURL("image/png");
+      const pdf = new jsPDF("p", "mm", "a4");
+      const pdfWidth = pdf.internal.pageSize.getWidth();
+      const pdfHeight = pdf.internal.pageSize.getHeight();
+      const canvasWidth = canvas.width;
+      const canvasHeight = canvas.height;
+      const ratio = canvasWidth / canvasHeight;
+      const width = pdfWidth - 20; // with margin
+      const height = width / ratio;
+
+      pdf.addImage(imgData, "PNG", 10, 10, width, height);
+      pdf.save(`PintarAI - ${item.summary.slice(0, 20)}.pdf`);
+      toast({
+        title: "Mengunduh PDF",
+        description: "File PDF Anda sedang dibuat.",
+      });
+    });
+  };
 
   if (!isMounted) {
     return (
@@ -44,40 +91,54 @@ export default function HistoryPage() {
 
   return (
     <AppLayout>
-      <Card>
+      <Card className="border-0 shadow-none">
         <CardHeader>
-          <CardTitle>Riwayat Pertanyaan</CardTitle>
+          <CardTitle className="text-2xl font-bold">Riwayat Pertanyaan</CardTitle>
+          <CardDescription>Lihat semua pertanyaan yang pernah Anda ajukan sebelumnya.</CardDescription>
         </CardHeader>
         <CardContent>
           {sortedHistory.length > 0 ? (
             <Accordion type="single" collapsible className="w-full">
-              {sortedHistory.map((item) => (
+              {sortedHistory.map((item, index) => (
                 <AccordionItem value={item.id} key={item.id}>
                   <AccordionTrigger>
                     <div className="flex flex-col items-start text-left">
-                      <p className="font-semibold">{item.summary}</p>
+                      <p className="font-semibold text-base">{item.summary}</p>
                       <p className="text-sm text-muted-foreground">
                         {item.classLevel} &middot; {item.subject} &middot; {format(new Date(item.timestamp), "PPP p")}
                       </p>
                     </div>
                   </AccordionTrigger>
                   <AccordionContent>
-                    <div className="space-y-4 p-4 bg-muted/50 rounded-lg">
+                    <div ref={el => contentRefs.current[index] = el} className="space-y-6 p-4 bg-muted/50 rounded-lg">
                       <div>
-                        <h4 className="font-semibold mb-2">Pertanyaan Anda:</h4>
-                        <p className="text-sm whitespace-pre-wrap">{item.questionText}</p>
+                        <h4 className="font-semibold text-base mb-2">Pertanyaan Anda:</h4>
+                        <p className="text-sm whitespace-pre-wrap font-sans">{item.questionText}</p>
                       </div>
                       <div>
-                        <h4 className="font-semibold mb-2">Jawaban AI:</h4>
-                        <div className="prose prose-sm max-w-none text-sm whitespace-pre-wrap">{item.answer}</div>
+                        <h4 className="font-semibold text-base mb-2">Jawaban AI:</h4>
+                        <div className="prose prose-sm max-w-none text-sm whitespace-pre-wrap font-sans">{item.answer}</div>
                       </div>
+                    </div>
+                    <div className="mt-4 flex items-center justify-end gap-2">
+                       <Button variant="outline" size="sm" onClick={() => handleCopy(item)}>
+                        <Copy className="mr-2 h-4 w-4" />
+                        Salin
+                       </Button>
+                       <Button variant="outline" size="sm" onClick={() => handleDownloadPdf(item, index)}>
+                        <Download className="mr-2 h-4 w-4" />
+                        Unduh PDF
+                       </Button>
                     </div>
                   </AccordionContent>
                 </AccordionItem>
               ))}
             </Accordion>
           ) : (
-            <p className="text-muted-foreground text-center">Anda belum memiliki riwayat pertanyaan.</p>
+            <div className="text-center py-12 text-muted-foreground">
+              <p className="mb-2">Anda belum memiliki riwayat pertanyaan.</p>
+              <p className="text-sm">Mulai ajukan pertanyaan dan riwayat Anda akan muncul di sini.</p>
+            </div>
           )}
         </CardContent>
       </Card>

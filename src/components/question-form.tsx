@@ -19,7 +19,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Loader2, Sparkles, Upload } from "lucide-react";
 import { CLASS_LEVELS, SUBJECTS } from "@/lib/constants";
 import { useToast } from "@/hooks/use-toast";
-import { Skeleton } from "@/components/ui/skeleton";
+import { Skeleton } from "./ui/skeleton";
 
 const formSchema = z.object({
   classLevel: z.string().min(1, "Silakan pilih jenjang kelas."),
@@ -113,15 +113,15 @@ export default function QuestionForm() {
 
   return (
     <div>
-      <Card>
+      <Card className="border-0 shadow-none">
         <form onSubmit={form.handleSubmit(onSubmit)}>
           <CardHeader>
-            <CardTitle>Kirim Pertanyaan Anda</CardTitle>
+            <CardTitle className="text-2xl font-bold">Kirim Pertanyaan Anda</CardTitle>
             <CardDescription>Pilih jenjang kelas, mata pelajaran, dan ketik pertanyaan Anda di bawah ini. Anda juga dapat mengunggah file untuk konteks.</CardDescription>
           </CardHeader>
           <CardContent>
             <Form {...form}>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <FormField
                   control={form.control}
                   name="classLevel"
@@ -171,7 +171,7 @@ export default function QuestionForm() {
                 control={form.control}
                 name="questionText"
                 render={({ field }) => (
-                  <FormItem className="mt-6">
+                  <FormItem className="mt-4">
                     <FormLabel>Pertanyaan</FormLabel>
                     <FormControl>
                       <Textarea placeholder="Ketik pertanyaan Anda di sini..." className="min-h-[150px]" {...field} />
@@ -184,23 +184,23 @@ export default function QuestionForm() {
                 control={form.control}
                 name="file"
                 render={({ field }) => (
-                  <FormItem className="mt-6">
+                  <FormItem className="mt-4">
                     <FormLabel>Opsional: Unggah File (Gambar/Dok)</FormLabel>
                     <FormControl>
                       <div className="relative">
-                        <Button type="button" variant="outline" className="w-full justify-start text-muted-foreground" onClick={() => document.getElementById('file-upload')?.click()}>
-                            <Upload className="mr-2 h-4 w-4" />
-                            {fileName || "Pilih file"}
-                        </Button>
-                        <Input 
+                         <Input 
                             id="file-upload"
                             type="file" 
-                            className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                            className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
                             onChange={(e) => {
                                 field.onChange(e.target.files);
                                 setFileName(e.target.files?.[0]?.name || "");
                             }}
                         />
+                        <div className="flex items-center justify-center w-full px-3 py-2 text-sm text-muted-foreground border rounded-md">
+                            <Upload className="mr-2 h-4 w-4" />
+                            {fileName || "Pilih file untuk diunggah"}
+                        </div>
                       </div>
                     </FormControl>
                     <FormMessage />
@@ -249,7 +249,7 @@ export default function QuestionForm() {
               </div>
               <div>
                 <h4 className="font-semibold mb-2">Jawabannya:</h4>
-                <div className="text-sm p-4 border rounded-lg whitespace-pre-wrap leading-relaxed">{result.answer}</div>
+                <div className="prose text-sm p-4 border rounded-lg whitespace-pre-wrap leading-relaxed">{result.answer}</div>
               </div>
           </CardContent>
         </Card>
