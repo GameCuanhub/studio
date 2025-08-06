@@ -6,7 +6,7 @@ import { signOut } from "firebase/auth";
 import { auth } from "@/lib/firebase/config";
 import { useAuth } from "@/context/auth-provider";
 import { useRouter, usePathname } from "next/navigation";
-import { Home, History, LogOut, PanelLeft } from "lucide-react";
+import { Home, History, LogOut, PanelLeft, Settings } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -17,7 +17,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
+import { Sheet, SheetContent, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { Logo } from "./logo";
 import { Avatar, AvatarFallback, AvatarImage } from "./ui/avatar";
@@ -49,26 +49,26 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
 
 
   return (
-    <div className="flex min-h-screen w-full flex-col bg-muted/40">
-      <aside className="fixed inset-y-0 left-0 z-10 hidden w-20 flex-col border-r bg-background sm:flex">
+    <div className="flex min-h-screen w-full flex-col bg-background">
+       <aside className="fixed inset-y-0 left-0 z-10 hidden w-16 flex-col border-r border-secondary bg-background sm:flex">
         <nav className="flex flex-col items-center gap-4 px-2 sm:py-5">
           <Link
             href="/"
-            className="group flex h-10 w-10 shrink-0 items-center justify-center gap-2 rounded-full text-lg font-semibold text-primary-foreground md:h-10 md:w-10 md:text-base"
+            className="group flex h-9 w-9 shrink-0 items-center justify-center gap-2 rounded-full bg-primary text-lg font-semibold text-primary-foreground md:h-9 md:w-9 md:text-base"
           >
             <Logo />
             <span className="sr-only">PintarAI</span>
           </Link>
           <TooltipProvider>
             {navItems.map((item) => (
-              <Tooltip key={item.href}>
+              <Tooltip key={item.href} delayDuration={0}>
                 <TooltipTrigger asChild>
                   <Link
                     href={item.href}
-                    className={`flex h-10 w-10 items-center justify-center rounded-lg transition-colors md:h-10 md:w-10 ${
+                    className={`flex h-9 w-9 items-center justify-center rounded-lg transition-colors md:h-9 md:w-9 ${
                       pathname === item.href
                         ? "bg-primary text-primary-foreground"
-                        : "text-muted-foreground hover:bg-accent hover:text-foreground"
+                        : "text-muted-foreground hover:bg-secondary hover:text-foreground"
                     }`}
                   >
                     <item.icon className="h-5 w-5" />
@@ -80,9 +80,40 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
             ))}
           </TooltipProvider>
         </nav>
+        <nav className="mt-auto flex flex-col items-center gap-4 px-2 sm:py-5">
+            <DropdownMenu>
+                <TooltipProvider>
+                    <Tooltip delayDuration={0}>
+                        <TooltipTrigger asChild>
+                             <DropdownMenuTrigger asChild>
+                                <Button
+                                    variant="outline"
+                                    size="icon"
+                                    className="overflow-hidden rounded-full h-9 w-9 border-secondary hover:bg-secondary"
+                                >
+                                    <Avatar className="h-9 w-9">
+                                    <AvatarImage src={user?.photoURL || ''} alt="User avatar" />
+                                    <AvatarFallback>{getAvatarFallback()}</AvatarFallback>
+                                    </Avatar>
+                                </Button>
+                            </DropdownMenuTrigger>
+                        </TooltipTrigger>
+                        <TooltipContent side="right">Profil & Pengaturan</TooltipContent>
+                    </Tooltip>
+                </TooltipProvider>
+                <DropdownMenuContent align="end">
+                <DropdownMenuLabel>{user?.displayName || user?.email}</DropdownMenuLabel>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem onClick={handleLogout}>
+                    <LogOut className="mr-2 h-4 w-4" />
+                    <span>Keluar</span>
+                </DropdownMenuItem>
+                </DropdownMenuContent>
+            </DropdownMenu>
+        </nav>
       </aside>
-      <div className="flex flex-col sm:gap-4 sm:py-4 sm:pl-20">
-        <header className="sticky top-0 z-30 flex h-14 items-center gap-4 border-b bg-background px-4 sm:static sm:h-auto sm:border-0 sm:bg-transparent sm:px-6">
+      <div className="flex flex-col sm:gap-4 sm:py-4 sm:pl-16">
+        <header className="sticky top-0 z-30 flex h-14 items-center gap-4 border-b border-secondary bg-background px-4 sm:static sm:h-auto sm:border-0 sm:bg-transparent sm:px-6">
           <Sheet>
             <SheetTrigger asChild>
               <Button size="icon" variant="outline" className="sm:hidden">
@@ -90,17 +121,14 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
                 <span className="sr-only">Buka Menu</span>
               </Button>
             </SheetTrigger>
-            <SheetContent side="left" className="sm:max-w-xs">
-              <SheetHeader>
-                <SheetTitle className="sr-only">Menu</SheetTitle>
-              </SheetHeader>
-              <nav className="grid gap-6 text-lg font-medium">
+            <SheetContent side="left" className="sm:max-w-xs bg-background border-secondary">
+              <SheetTitle>Menu</SheetTitle>
+              <nav className="grid gap-6 text-lg font-medium mt-8">
                 <Link
                   href="/"
                   className="group flex h-10 shrink-0 items-center justify-center gap-2 rounded-full text-lg font-semibold text-primary-foreground md:text-base"
                 >
                   <Logo />
-                  <span className="sr-only">PintarAI</span>
                 </Link>
                 {navItems.map((item) => (
                    <Link
@@ -120,30 +148,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
             </SheetContent>
           </Sheet>
           <div className="relative ml-auto flex-1 md:grow-0">
-            {/* Can add a search bar here if needed */}
           </div>
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button
-                variant="outline"
-                size="icon"
-                className="overflow-hidden rounded-full"
-              >
-                <Avatar>
-                  <AvatarImage src={user?.photoURL || ''} alt="User avatar" />
-                  <AvatarFallback>{getAvatarFallback()}</AvatarFallback>
-                </Avatar>
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
-              <DropdownMenuLabel>{user?.displayName || user?.email}</DropdownMenuLabel>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem onClick={handleLogout}>
-                <LogOut className="mr-2 h-4 w-4" />
-                <span>Keluar</span>
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
         </header>
         <main className="grid flex-1 items-start gap-4 p-4 sm:px-6 sm:py-0 md:gap-8">
           {children}

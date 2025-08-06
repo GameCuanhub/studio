@@ -10,16 +10,18 @@ import { useLocalStorage } from "@/hooks/use-local-storage";
 import type { HistoryItem } from "@/types";
 import { format } from "date-fns";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Copy, Download } from "lucide-react";
+import { Copy, Download, ArrowLeft } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import jsPDF from "jspdf";
 import html2canvas from "html2canvas";
+import { useRouter } from "next/navigation";
 
 export default function HistoryPage() {
   const [history, setHistory] = useLocalStorage<HistoryItem[]>("pintarai-history", []);
   const [isMounted, setIsMounted] = useState(false);
   const { toast } = useToast();
   const contentRefs = useRef<(HTMLDivElement | null)[]>([]);
+  const router = useRouter();
 
   useEffect(() => {
     setIsMounted(true);
@@ -44,7 +46,8 @@ ${item.answer}`;
 
     html2canvas(content, {
       scale: 2,
-      backgroundColor: null,
+      backgroundColor: document.body.classList.contains('dark') ? '#09090b' : '#ffffff', 
+      useCORS: true,
     }).then((canvas) => {
       const imgData = canvas.toDataURL("image/png");
       const pdf = new jsPDF("p", "mm", "a4");
@@ -53,8 +56,11 @@ ${item.answer}`;
       const canvasWidth = canvas.width;
       const canvasHeight = canvas.height;
       const ratio = canvasWidth / canvasHeight;
-      const width = pdfWidth - 20; // with margin
-      const height = width / ratio;
+      const width = pdfWidth - 20;
+      let height = width / ratio;
+      if (height > pdfHeight - 20) {
+        height = pdfHeight - 20;
+      }
 
       pdf.addImage(imgData, "PNG", 10, 10, width, height);
       pdf.save(`PintarAI - ${item.summary.slice(0, 20)}.pdf`);
@@ -91,17 +97,23 @@ ${item.answer}`;
 
   return (
     <AppLayout>
-      <Card className="border-0 shadow-none">
-        <CardHeader>
-          <CardTitle className="text-2xl font-bold">Riwayat Pertanyaan</CardTitle>
-          <CardDescription>Lihat semua pertanyaan yang pernah Anda ajukan sebelumnya.</CardDescription>
-        </CardHeader>
-        <CardContent>
+      <div className="flex items-center gap-4 mb-4">
+        <Button variant="outline" size="icon" onClick={() => router.back()}>
+            <ArrowLeft className="h-4 w-4" />
+            <span className="sr-only">Kembali</span>
+        </Button>
+        <div>
+            <h1 className="text-2xl font-bold tracking-tight">Riwayat Pertanyaan</h1>
+            <p className="text-muted-foreground">Lihat semua pertanyaan yang pernah Anda ajukan sebelumnya.</p>
+        </div>
+      </div>
+      <Card className="border-0 shadow-none bg-transparent">
+        <CardContent className="p-0">
           {sortedHistory.length > 0 ? (
             <Accordion type="single" collapsible className="w-full">
               {sortedHistory.map((item, index) => (
-                <AccordionItem value={item.id} key={item.id}>
-                  <AccordionTrigger>
+                <AccordionItem value={item.id} key={item.id} className="border-secondary">
+                  <AccordionTrigger className="hover:no-underline">
                     <div className="flex flex-col items-start text-left">
                       <p className="font-semibold text-base">{item.summary}</p>
                       <p className="text-sm text-muted-foreground">
@@ -110,10 +122,10 @@ ${item.answer}`;
                     </div>
                   </AccordionTrigger>
                   <AccordionContent>
-                    <div ref={el => contentRefs.current[index] = el} className="space-y-6 p-4 bg-muted/50 rounded-lg">
+                    <div ref={el => contentRefs.current[index] = el} className="space-y-6 p-4 bg-secondary/50 rounded-lg">
                       <div>
                         <h4 className="font-semibold text-base mb-2">Pertanyaan Anda:</h4>
-                        <p className="text-sm whitespace-pre-wrap font-sans">{item.questionText}</p>
+                        <p className="text-sm whitespace-pre-wrap font-sans text-muted-foreground">{item.questionText}</p>
                       </div>
                       <div>
                         <h4 className="font-semibold text-base mb-2">Jawaban AI:</h4>
@@ -135,9 +147,10 @@ ${item.answer}`;
               ))}
             </Accordion>
           ) : (
-            <div className="text-center py-12 text-muted-foreground">
-              <p className="mb-2">Anda belum memiliki riwayat pertanyaan.</p>
-              <p className="text-sm">Mulai ajukan pertanyaan dan riwayat Anda akan muncul di sini.</p>
+            <div className="text-center py-16 text-muted-foreground border-2 border-dashed border-secondary rounded-lg">
+              <History className="mx-auto h-12 w-12 text-muted-foreground" />
+              <h3 className="mt-4 text-lg font-semibold">Riwayat Kosong</h3>
+              <p className="mt-2 text-sm">Mulai ajukan pertanyaan dan riwayat Anda akan muncul di sini.</p>
             </div>
           )}
         </CardContent>

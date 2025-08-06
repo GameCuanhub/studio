@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useForm, SubmitHandler } from "react-hook-form";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -12,12 +12,12 @@ import type { HistoryItem } from "@/types";
 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
-import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
+import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { Loader2, Sparkles, Upload } from "lucide-react";
-import { CLASS_LEVELS, SUBJECTS } from "@/lib/constants";
+import { CLASS_LEVELS, SUBJECTS_BY_LEVEL } from "@/lib/constants";
 import { useToast } from "@/hooks/use-toast";
 import { Skeleton } from "./ui/skeleton";
 
@@ -54,6 +54,13 @@ export default function QuestionForm() {
       questionText: "",
     },
   });
+
+  const selectedClassLevel = form.watch("classLevel");
+  const availableSubjects = selectedClassLevel ? SUBJECTS_BY_LEVEL[selectedClassLevel.split(" ")[0] as keyof typeof SUBJECTS_BY_LEVEL] || [] : [];
+  
+  useEffect(() => {
+    form.resetField("subject");
+  }, [selectedClassLevel, form]);
 
   const onSubmit: SubmitHandler<FormValues> = async (data) => {
     setLoading(true);
@@ -113,13 +120,9 @@ export default function QuestionForm() {
 
   return (
     <div>
-      <Card className="border-0 shadow-none">
+      <Card className="border-0 shadow-none bg-transparent">
         <form onSubmit={form.handleSubmit(onSubmit)}>
-          <CardHeader>
-            <CardTitle className="text-2xl font-bold">Kirim Pertanyaan Anda</CardTitle>
-            <CardDescription>Pilih jenjang kelas, mata pelajaran, dan ketik pertanyaan Anda di bawah ini. Anda juga dapat mengunggah file untuk konteks.</CardDescription>
-          </CardHeader>
-          <CardContent>
+          <CardContent className="p-0">
             <Form {...form}>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <FormField
@@ -150,14 +153,14 @@ export default function QuestionForm() {
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel>Mata Pelajaran</FormLabel>
-                      <Select onValueChange={field.onChange} defaultValue={field.value}>
+                      <Select onValueChange={field.onChange} value={field.value} disabled={!selectedClassLevel}>
                         <FormControl>
                           <SelectTrigger>
                             <SelectValue placeholder="Pilih mata pelajaran" />
                           </SelectTrigger>
                         </FormControl>
                         <SelectContent>
-                          {SUBJECTS.map((subject) => (
+                          {availableSubjects.map((subject) => (
                             <SelectItem key={subject} value={subject}>{subject}</SelectItem>
                           ))}
                         </SelectContent>
@@ -185,7 +188,7 @@ export default function QuestionForm() {
                 name="file"
                 render={({ field }) => (
                   <FormItem className="mt-4">
-                    <FormLabel>Opsional: Unggah File (Gambar/Dok)</FormLabel>
+                    <FormLabel>Opsional: Unggah File</FormLabel>
                     <FormControl>
                       <div className="relative">
                          <Input 
@@ -197,59 +200,61 @@ export default function QuestionForm() {
                                 setFileName(e.target.files?.[0]?.name || "");
                             }}
                         />
-                        <div className="flex items-center justify-center w-full px-3 py-2 text-sm text-muted-foreground border rounded-md">
+                        <div className="flex items-center justify-center w-full px-3 py-2 text-sm text-muted-foreground border border-dashed rounded-md">
                             <Upload className="mr-2 h-4 w-4" />
-                            {fileName || "Pilih file untuk diunggah"}
+                            {fileName || "Pilih file untuk diunggah (gambar, dok, dll.)"}
                         </div>
                       </div>
                     </FormControl>
+                     <FormDescription>
+                      Lampirkan gambar atau dokumen untuk memberikan konteks pada pertanyaan Anda.
+                    </FormDescription>
                     <FormMessage />
                   </FormItem>
                 )}
               />
+               <div className="mt-6">
+                 <Button type="submit" disabled={loading} size="lg" className="w-full md:w-auto">
+                  {loading ? (
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  ) : (
+                    <Sparkles className="mr-2 h-4 w-4" />
+                  )}
+                  Dapatkan Jawaban
+                </Button>
+               </div>
             </Form>
           </CardContent>
-          <CardFooter>
-            <Button type="submit" disabled={loading} size="lg">
-              {loading ? (
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-              ) : (
-                <Sparkles className="mr-2 h-4 w-4" />
-              )}
-              Dapatkan Jawaban
-            </Button>
-          </CardFooter>
         </form>
       </Card>
 
       {loading && (
-        <Card className="mt-8">
+        <Card className="mt-8 bg-secondary">
             <CardHeader>
-                <CardTitle>Menghasilkan Jawaban...</CardTitle>
-                <CardDescription>AI sedang berpikir. Mohon tunggu sebentar.</CardDescription>
+                <CardTitle>AI sedang meracik jawaban...</CardTitle>
+                <CardDescription>Mohon tunggu sebentar, kami sedang memproses pertanyaan Anda.</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
-                <Skeleton className="h-4 w-full" />
-                <Skeleton className="h-4 w-full" />
-                <Skeleton className="h-4 w-3/4" />
+                <Skeleton className="h-4 w-full bg-muted" />
+                <Skeleton className="h-4 w-full bg-muted" />
+                <Skeleton className="h-4 w-3/4 bg-muted" />
             </CardContent>
         </Card>
       )}
 
       {result && (
-        <Card className="mt-8 animate-in fade-in-50">
+        <Card className="mt-8 animate-in fade-in-50 bg-secondary">
           <CardHeader>
             <CardTitle>Jawaban yang Dihasilkan AI</CardTitle>
-            <CardDescription>Berikut adalah jawaban untuk pertanyaan Anda.</CardDescription>
           </CardHeader>
           <CardContent className="space-y-6">
              <div>
                 <h4 className="font-semibold mb-2">Pertanyaan Anda:</h4>
-                <p className="text-sm text-muted-foreground p-4 bg-muted/50 rounded-lg whitespace-pre-wrap">{result.questionText}</p>
+                <p className="text-sm text-muted-foreground p-4 bg-background/50 rounded-lg whitespace-pre-wrap">{result.questionText}</p>
               </div>
               <div>
                 <h4 className="font-semibold mb-2">Jawabannya:</h4>
-                <div className="prose text-sm p-4 border rounded-lg whitespace-pre-wrap leading-relaxed">{result.answer}</div>
+                <div className="prose text-sm p-4 border border-border rounded-lg whitespace-pre-wrap leading-relaxed bg-background/50">{result.answer}</div>
               </div>
           </CardContent>
         </Card>
