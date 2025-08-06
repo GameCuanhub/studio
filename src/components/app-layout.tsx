@@ -35,6 +35,17 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
     { href: "/", label: "Ask Question", icon: Home },
     { href: "/history", label: "History", icon: History },
   ];
+  
+  const getAvatarFallback = () => {
+    if (user?.displayName) {
+      return user.displayName.charAt(0).toUpperCase();
+    }
+    if (user?.email) {
+      return user.email.charAt(0).toUpperCase();
+    }
+    return 'U';
+  }
+
 
   return (
     <div className="flex min-h-screen w-full flex-col bg-muted/40">
@@ -116,12 +127,12 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
               >
                 <Avatar>
                   <AvatarImage src={user?.photoURL || ''} alt="User avatar" />
-                  <AvatarFallback>{user?.email?.charAt(0).toUpperCase()}</AvatarFallback>
+                  <AvatarFallback>{getAvatarFallback()}</AvatarFallback>
                 </Avatar>
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
-              <DropdownMenuLabel>{user?.email}</DropdownMenuLabel>
+              <DropdownMenuLabel>{user?.displayName || user?.email}</DropdownMenuLabel>
               <DropdownMenuSeparator />
               <DropdownMenuItem onClick={handleLogout}>
                 <LogOut className="mr-2 h-4 w-4" />
