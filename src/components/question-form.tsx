@@ -1,0 +1,257 @@
+"use client";
+
+import { useState } from "react";
+import { useForm, SubmitHandler } from "react-hook-form";
+import { z } from "zod";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { answerQuestion } from "@/ai/flows/answer-question";
+import { summarizeQuestion } from "@/ai/flows/summarize-question";
+import { useLocalStorage } from "@/hooks/use-local-storage";
+import type { HistoryItem } from "@/types";
+
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
+import { Input } from "@/components/ui/input";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Textarea } from "@/components/ui/textarea";
+import { Loader2, Sparkles, Upload } from "lucide-react";
+import { CLASS_LEVELS, SUBJECTS } from "@/lib/constants";
+import { useToast } from "@/hooks/use-toast";
+
+const formSchema = z.object({
+  classLevel: z.string().min(1, "Please select a class level."),
+  subject: z.string().min(1, "Please select a subject."),
+  questionText: z.string().min(10, "Question must be at least 10 characters."),
+  file: z.any().optional(),
+});
+
+type FormValues = z.infer<typeof formSchema>;
+
+const readFileAsDataURL = (file: File): Promise<string> => {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result as string);
+    reader.onerror = (error) => reject(error);
+    reader.readAsDataURL(file);
+  });
+};
+
+export default function QuestionForm() {
+  const [loading, setLoading] = useState(false);
+  const [result, setResult] = useState<HistoryItem | null>(null);
+  const [history, setHistory] = useLocalStorage<HistoryItem[]>("pintarai-history", []);
+  const [fileName, setFileName] = useState("");
+  const { toast } = useToast();
+
+  const form = useForm<FormValues>({
+    resolver: zodResolver(formSchema),
+    defaultValues: {
+      classLevel: "",
+      subject: "",
+      questionText: "",
+    },
+  });
+
+  const onSubmit: SubmitHandler<FormValues> = async (data) => {
+    setLoading(true);
+    setResult(null);
+
+    let uploadedFileUri: string | undefined = undefined;
+    if (data.file && data.file[0]) {
+      try {
+        uploadedFileUri = await readFileAsDataURL(data.file[0]);
+      } catch (error) {
+        toast({
+          variant: "destructive",
+          title: "File Upload Error",
+          description: "Could not read the uploaded file.",
+        });
+        setLoading(false);
+        return;
+      }
+    }
+
+    try {
+      const answerResponse = await answerQuestion({
+        classLevel: data.classLevel,
+        subject: data.subject,
+        questionText: data.questionText,
+        uploadedFileUri,
+      });
+
+      const summaryResponse = await summarizeQuestion({
+         question: data.questionText,
+      });
+
+
+      const newHistoryItem: HistoryItem = {
+        id: new Date().toISOString(),
+        ...data,
+        questionText: data.questionText,
+        answer: answerResponse.answer,
+        summary: summaryResponse.summary,
+        timestamp: new Date().toISOString(),
+      };
+
+      setResult(newHistoryItem);
+      setHistory([newHistoryItem, ...history]);
+      form.reset();
+      setFileName("");
+    } catch (error: any) {
+      toast({
+        variant: "destructive",
+        title: "AI Error",
+        description: error.message || "Failed to get an answer from the AI.",
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div>
+      <Card>
+        <form onSubmit={form.handleSubmit(onSubmit)}>
+          <CardHeader>
+            <CardTitle>Submit Your Question</CardTitle>
+            <CardDescription>Select the class level, subject, and type your question below. You can also upload a file for context.</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <Form {...form}>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <FormField
+                  control={form.control}
+                  name="classLevel"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Class Level</FormLabel>
+                      <Select onValueChange={field.onChange} defaultValue={field.value}>
+                        <FormControl>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select a class level" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          {CLASS_LEVELS.map((level) => (
+                            <SelectItem key={level} value={level}>{level}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="subject"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Subject</FormLabel>
+                      <Select onValueChange={field.onChange} defaultValue={field.value}>
+                        <FormControl>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select a subject" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          {SUBJECTS.map((subject) => (
+                            <SelectItem key={subject} value={subject}>{subject}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
+              <FormField
+                control={form.control}
+                name="questionText"
+                render={({ field }) => (
+                  <FormItem className="mt-6">
+                    <FormLabel>Question</FormLabel>
+                    <FormControl>
+                      <Textarea placeholder="Type your question here..." className="min-h-[150px]" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="file"
+                render={({ field }) => (
+                  <FormItem className="mt-6">
+                    <FormLabel>Optional: Upload File (Image/Doc)</FormLabel>
+                    <FormControl>
+                      <div className="relative">
+                        <Button type="button" variant="outline" className="w-full justify-start text-muted-foreground" onClick={() => document.getElementById('file-upload')?.click()}>
+                            <Upload className="mr-2 h-4 w-4" />
+                            {fileName || "Choose a file"}
+                        </Button>
+                        <Input 
+                            id="file-upload"
+                            type="file" 
+                            className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                            onChange={(e) => {
+                                field.onChange(e.target.files);
+                                setFileName(e.target.files?.[0]?.name || "");
+                            }}
+                        />
+                      </div>
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            </Form>
+          </CardContent>
+          <CardFooter>
+            <Button type="submit" disabled={loading} size="lg">
+              {loading ? (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              ) : (
+                <Sparkles className="mr-2 h-4 w-4" />
+              )}
+              Get Answer
+            </Button>
+          </CardFooter>
+        </form>
+      </Card>
+
+      {loading && (
+        <Card className="mt-8">
+            <CardHeader>
+                <CardTitle>Generating Answer...</CardTitle>
+                <CardDescription>The AI is thinking. Please wait a moment.</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+                <Skeleton className="h-4 w-full" />
+                <Skeleton className="h-4 w-full" />
+                <Skeleton className="h-4 w-3/4" />
+            </CardContent>
+        </Card>
+      )}
+
+      {result && (
+        <Card className="mt-8 animate-in fade-in-50">
+          <CardHeader>
+            <CardTitle>AI Generated Answer</CardTitle>
+            <CardDescription>Here is the answer to your question.</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-6">
+             <div>
+                <h4 className="font-semibold mb-2">Your Question:</h4>
+                <p className="text-sm text-muted-foreground p-4 bg-muted/50 rounded-lg whitespace-pre-wrap">{result.questionText}</p>
+              </div>
+              <div>
+                <h4 className="font-semibold mb-2">The Answer:</h4>
+                <div className="text-sm p-4 border rounded-lg whitespace-pre-wrap leading-relaxed">{result.answer}</div>
+              </div>
+          </CardContent>
+        </Card>
+      )}
+    </div>
+  );
+}
