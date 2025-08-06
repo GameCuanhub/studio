@@ -16,10 +16,11 @@ import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, For
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
-import { Loader2, Sparkles, Upload } from "lucide-react";
+import { Loader2, Sparkles, Upload, XCircle } from "lucide-react";
 import { CLASS_LEVELS, SUBJECTS_BY_LEVEL } from "@/lib/constants";
 import { useToast } from "@/hooks/use-toast";
 import { Skeleton } from "./ui/skeleton";
+import Image from "next/image";
 
 const formSchema = z.object({
   classLevel: z.string().min(1, "Silakan pilih jenjang kelas."),
@@ -44,6 +45,7 @@ export default function QuestionForm() {
   const [result, setResult] = useState<HistoryItem | null>(null);
   const [history, setHistory] = useLocalStorage<HistoryItem[]>("pintarai-history", []);
   const [fileName, setFileName] = useState("");
+  const [filePreview, setFilePreview] = useState<string | null>(null);
   const { toast } = useToast();
 
   const form = useForm<FormValues>({
@@ -52,6 +54,7 @@ export default function QuestionForm() {
       classLevel: "",
       subject: "",
       questionText: "",
+      file: undefined,
     },
   });
 
@@ -60,6 +63,32 @@ export default function QuestionForm() {
   useEffect(() => {
     form.resetField("subject");
   }, [selectedClassLevel, form]);
+
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      if (file.type.startsWith("image/")) {
+        const fileDataUrl = await readFileAsDataURL(file);
+        setFilePreview(fileDataUrl);
+      } else {
+        setFilePreview(null);
+      }
+      setFileName(file.name);
+      form.setValue("file", e.target.files);
+    } else {
+      setFilePreview(null);
+      setFileName("");
+      form.setValue("file", undefined);
+    }
+  }
+  
+  const resetFileInput = () => {
+    setFilePreview(null);
+    setFileName("");
+    form.resetField("file");
+    const fileInput = document.getElementById('file-upload') as HTMLInputElement;
+    if(fileInput) fileInput.value = "";
+  }
 
   const onSubmit: SubmitHandler<FormValues> = async (data) => {
     setLoading(true);
@@ -92,7 +121,6 @@ export default function QuestionForm() {
          question: data.questionText,
       });
 
-
       const newHistoryItem: HistoryItem = {
         id: new Date().toISOString(),
         ...data,
@@ -100,12 +128,14 @@ export default function QuestionForm() {
         answer: answerResponse.answer,
         summary: summaryResponse.summary,
         timestamp: new Date().toISOString(),
+        uploadedFileUri: uploadedFileUri,
+        fileName: data.file?.[0]?.name,
       };
 
       setResult(newHistoryItem);
       setHistory([newHistoryItem, ...history]);
       form.reset();
-      setFileName("");
+      resetFileInput();
     } catch (error: any) {
       toast({
         variant: "destructive",
@@ -130,7 +160,7 @@ export default function QuestionForm() {
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel>Jenjang Kelas</FormLabel>
-                      <Select onValueChange={field.onChange} defaultValue={field.value}>
+                      <Select onValueChange={field.onChange} value={field.value}>
                         <FormControl>
                           <SelectTrigger>
                             <SelectValue placeholder="Pilih jenjang kelas" />
@@ -188,7 +218,7 @@ export default function QuestionForm() {
               <FormField
                 control={form.control}
                 name="file"
-                render={({ field }) => (
+                render={() => (
                   <FormItem className="mt-4">
                     <FormLabel>Opsional: Unggah File</FormLabel>
                     <FormControl>
@@ -197,10 +227,8 @@ export default function QuestionForm() {
                             id="file-upload"
                             type="file" 
                             className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
-                            onChange={(e) => {
-                                field.onChange(e.target.files);
-                                setFileName(e.target.files?.[0]?.name || "");
-                            }}
+                            onChange={handleFileChange}
+                            accept="image/*,application/pdf,.doc,.docx"
                         />
                         <div className="flex items-center justify-center w-full px-3 py-2 text-sm text-muted-foreground border-2 border-dashed rounded-md h-12">
                             <Upload className="mr-2 h-4 w-4" />
@@ -215,6 +243,24 @@ export default function QuestionForm() {
                   </FormItem>
                 )}
               />
+
+              {filePreview && (
+                <div className="mt-4 relative w-40 h-40 border rounded-md overflow-hidden">
+                    <Image src={filePreview} alt="Pratinjau file" layout="fill" objectFit="cover" />
+                    <Button variant="ghost" size="icon" className="absolute top-1 right-1 bg-black/50 hover:bg-black/75 h-6 w-6" onClick={resetFileInput}>
+                        <XCircle className="h-4 w-4 text-white" />
+                    </Button>
+                </div>
+              )}
+              {fileName && !filePreview && (
+                <div className="mt-4 text-sm text-muted-foreground">
+                    File terpilih: {fileName}
+                    <Button variant="ghost" size="icon" className="h-6 w-6 ml-2" onClick={resetFileInput}>
+                        <XCircle className="h-4 w-4 text-destructive" />
+                    </Button>
+                </div>
+              )}
+
                <div className="mt-6">
                  <Button type="submit" disabled={loading} size="lg" className="w-full md:w-auto">
                   {loading ? (
@@ -253,6 +299,14 @@ export default function QuestionForm() {
              <div>
                 <h4 className="font-semibold mb-2">Pertanyaan Anda:</h4>
                 <p className="text-sm text-muted-foreground p-4 bg-secondary/50 rounded-lg whitespace-pre-wrap">{result.questionText}</p>
+                 {result.uploadedFileUri && result.uploadedFileUri.startsWith('image/') && (
+                    <div className="mt-4 relative w-full max-w-sm h-64 border rounded-md overflow-hidden">
+                        <Image src={result.uploadedFileUri} alt="Lampiran file" layout="fill" objectFit="contain" />
+                    </div>
+                )}
+                 {result.fileName && !result.uploadedFileUri?.startsWith('image/') && (
+                     <p className="text-sm text-muted-foreground mt-2">File terlampir: {result.fileName}</p>
+                )}
               </div>
               <div>
                 <h4 className="font-semibold mb-2">Jawabannya:</h4>

@@ -6,4 +6,6 @@ export interface HistoryItem {
   classLevel: string;
   answer: string;
   timestamp: string; // ISO string
+  uploadedFileUri?: string;
+  fileName?: string;
 }

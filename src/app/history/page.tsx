@@ -15,6 +15,7 @@ import { useToast } from "@/hooks/use-toast";
 import jsPDF from "jspdf";
 import { useRouter } from "next/navigation";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
+import Image from "next/image";
 
 
 export default function HistoryPage() {
@@ -76,6 +77,47 @@ ${item.answer}`;
     const questionLines = doc.splitTextToSize(item.questionText, contentWidth);
     doc.text(questionLines, margin, y);
     y += questionLines.length * 6 + 10;
+
+    // Attached File Section
+    if (item.uploadedFileUri && item.uploadedFileUri.startsWith('data:image')) {
+        doc.setFont("helvetica", "bold");
+        doc.setFontSize(12);
+        doc.text("File Terlampir:", margin, y);
+        y += 6;
+        try {
+            const img = new (window as any).Image();
+            img.src = item.uploadedFileUri;
+            const imgProps = doc.getImageProperties(item.uploadedFileUri);
+            const imgRatio = imgProps.width / imgProps.height;
+            let imgWidth = contentWidth / 2;
+            let imgHeight = imgWidth / imgRatio;
+            
+            // check if there is enough space, if not add new page
+            if (y + imgHeight > 280) {
+                doc.addPage();
+                y = 20;
+            }
+
+            doc.addImage(item.uploadedFileUri, 'JPEG', margin, y, imgWidth, imgHeight);
+            y += imgHeight + 10;
+        } catch (e) {
+            console.error("Error adding image to PDF:", e);
+            doc.setFont("helvetica", "italic");
+            doc.setFontSize(10);
+            doc.text("Tidak dapat menampilkan gambar pratinjau.", margin, y);
+            y+= 10;
+        }
+    } else if (item.fileName) {
+        doc.setFont("helvetica", "bold");
+        doc.setFontSize(12);
+        doc.text("File Terlampir:", margin, y);
+        y += 6;
+        doc.setFont("helvetica", "italic");
+        doc.setFontSize(10);
+        doc.text(item.fileName, margin, y);
+        y+= 10;
+    }
+
 
     // Answer Section
     doc.setFont("helvetica", "bold");
@@ -192,6 +234,14 @@ ${item.answer}`;
                       <div>
                         <h4 className="font-semibold text-base mb-2">Pertanyaan Anda:</h4>
                         <p className="text-sm whitespace-pre-wrap font-sans text-muted-foreground">{item.questionText}</p>
+                         {item.uploadedFileUri && item.uploadedFileUri.startsWith('data:image') && (
+                            <div className="mt-4 relative w-full max-w-xs h-48 border rounded-md overflow-hidden">
+                                <Image src={item.uploadedFileUri} alt="Lampiran file" layout="fill" objectFit="contain" />
+                            </div>
+                        )}
+                        {item.fileName && !item.uploadedFileUri?.startsWith('data:image') && (
+                            <p className="text-sm text-muted-foreground mt-2">File terlampir: {item.fileName}</p>
+                        )}
                       </div>
                       <div>
                         <h4 className="font-semibold text-base mb-2">Jawaban AI:</h4>
