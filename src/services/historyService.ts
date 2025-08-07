@@ -19,16 +19,20 @@ const CHATS_COLLECTION = "chats";
 // Get all chat history for a specific user, ordered by most recent
 export const getUserHistory = async (userId: string): Promise<ChatSession[]> => {
   try {
+    // Query without ordering on the server
     const q = query(
       collection(db, CHATS_COLLECTION),
-      where("userId", "==", userId),
-      orderBy("startTime", "desc")
+      where("userId", "==", userId)
     );
     const querySnapshot = await getDocs(q);
     const history: ChatSession[] = [];
     querySnapshot.forEach((doc) => {
       history.push({ id: doc.id, ...doc.data() } as ChatSession);
     });
+
+    // Sort the history on the client-side
+    history.sort((a, b) => new Date(b.startTime).getTime() - new Date(a.startTime).getTime());
+    
     return history;
   } catch (error) {
     console.error("Error getting user history: ", error);
