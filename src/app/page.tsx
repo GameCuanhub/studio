@@ -17,6 +17,8 @@ import jsPDF from "jspdf";
 import { format } from "date-fns";
 import { id } from "date-fns/locale";
 import { useLocalStorage } from "@/hooks/use-local-storage";
+import { saveChatSession, getChatSession } from "@/services/historyService";
+
 
 type DisplayMessage = {
     type: 'user' | 'ai' | 'loading';
@@ -26,38 +28,32 @@ type DisplayMessage = {
 
 export default function Home() {
     const [currentSession, setCurrentSession] = useLocalStorage<ChatSession | null>("pintarai-chat-session", null);
-    const [history, setHistory] = useLocalStorage<ChatSession[]>("pintarai-history", []);
     const { user } = useAuth();
     const { toast } = useToast();
     const [isMounted, setIsMounted] = useState(false);
-    const prevCurrentSessionRef = useRef<ChatSession | null>(null);
 
+    // This effect runs when the component mounts or the user changes.
+    // It tries to load the active session from localStorage.
     useEffect(() => {
         setIsMounted(true);
-    }, []);
-
-    // Effect to auto-save session to history
-    useEffect(() => {
-        if (currentSession && currentSession.messages?.length > 0) {
-             // Deep comparison to avoid saving on every render
-            if (JSON.stringify(currentSession) !== JSON.stringify(prevCurrentSessionRef.current)) {
-                const existingIndex = history.findIndex(s => s && s.id === currentSession.id);
-                let updatedHistory;
-
-                if (existingIndex > -1) {
-                    // Update existing session
-                    updatedHistory = [...history];
-                    updatedHistory[existingIndex] = currentSession;
-                } else {
-                    // Add new session to the start of the history
-                    updatedHistory = [currentSession, ...history];
+        const activeSessionId = localStorage.getItem('active_session_id');
+        if (activeSessionId && user) {
+            getChatSession(activeSessionId).then(session => {
+                if (session) {
+                    setCurrentSession(session);
                 }
-                setHistory(updatedHistory.filter(Boolean));
-            }
+                 // Clear the active session ID after loading
+                localStorage.removeItem('active_session_id');
+            });
         }
-        // Update the ref for the next render
-        prevCurrentSessionRef.current = currentSession;
-    }, [currentSession, history, setHistory]);
+    }, [user]);
+
+    // This effect runs to automatically save the session to Firestore whenever it's updated.
+    useEffect(() => {
+        if (currentSession && user && currentSession.userId === user.uid && currentSession.messages.length > 0) {
+             saveChatSession(currentSession);
+        }
+    }, [currentSession, user]);
 
 
     const getAvatarFallback = () => {
@@ -185,7 +181,6 @@ export default function Home() {
     };
     
     const startNewSession = () => {
-        // The useEffect hook now handles saving, so this function can be simplified.
         setCurrentSession(null);
         toast({
             title: "Sesi Baru Dimulai",

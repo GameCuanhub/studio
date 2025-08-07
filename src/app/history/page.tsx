@@ -1,11 +1,10 @@
 
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import AppLayout from "@/components/app-layout";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { useLocalStorage } from "@/hooks/use-local-storage";
 import type { ChatSession } from "@/types";
 import { format } from "date-fns";
 import { id } from "date-fns/locale";
@@ -15,32 +14,44 @@ import { useToast } from "@/hooks/use-toast";
 import { useRouter } from "next/navigation";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import Link from "next/link";
+import { useAuth } from "@/context/auth-provider";
+import { getUserHistory, clearUserHistory } from "@/services/historyService";
 
 export default function HistoryPage() {
-  const [history, setHistory] = useLocalStorage<ChatSession[]>("pintarai-history", []);
-  const [currentSession, setCurrentSession] = useLocalStorage<ChatSession | null>("pintarai-chat-session", null);
-  const [isMounted, setIsMounted] = useState(false);
+  const [history, setHistory] = useState<ChatSession[]>([]);
+  const [loading, setLoading] = useState(true);
+  const { user } = useAuth();
   const { toast } = useToast();
   const router = useRouter();
 
+  const fetchHistory = useCallback(async () => {
+    if (!user) return;
+    setLoading(true);
+    const userHistory = await getUserHistory(user.uid);
+    setHistory(userHistory);
+    setLoading(false);
+  }, [user]);
+
   useEffect(() => {
-    setIsMounted(true);
-  }, []);
+    fetchHistory();
+  }, [fetchHistory]);
   
-  const handleLoadSession = (session: ChatSession) => {
-    setCurrentSession(session);
+  const handleLoadSession = (sessionId: string) => {
+    localStorage.setItem('active_session_id', sessionId);
     router.push('/');
   }
 
-  const handleClearHistory = () => {
+  const handleClearHistory = async () => {
+    if (!user) return;
+    await clearUserHistory(user.uid);
     setHistory([]);
     toast({
         title: "Riwayat Dihapus",
-        description: "Semua riwayat percakapan Anda telah dihapus.",
+        description: "Semua riwayat percakapan Anda telah dihapus dari cloud.",
     });
   };
   
-  if (!isMounted) {
+  if (loading) {
     return (
       <AppLayout>
         <div className="space-y-4">
@@ -59,10 +70,6 @@ export default function HistoryPage() {
     );
   }
 
-  const sortedHistory = [...history]
-    .filter(session => session && session.startTime && !isNaN(new Date(session.startTime).getTime()))
-    .sort((a, b) => new Date(b.startTime).getTime() - new Date(a.startTime).getTime());
-
   return (
     <AppLayout>
         <div className="flex items-start sm:items-center justify-between gap-4 mb-4 flex-col sm:flex-row">
@@ -76,7 +83,7 @@ export default function HistoryPage() {
                     <p className="text-muted-foreground">Pilih sesi untuk melanjutkan percakapan.</p>
                 </div>
             </div>
-            {sortedHistory.length > 0 && (
+            {history.length > 0 && (
                  <AlertDialog>
                     <AlertDialogTrigger asChild>
                         <Button variant="destructive" className="w-full sm:w-auto">
@@ -88,7 +95,7 @@ export default function HistoryPage() {
                         <AlertDialogHeader>
                         <AlertDialogTitle>Apakah Anda benar-benar yakin?</AlertDialogTitle>
                         <AlertDialogDescription>
-                            Tindakan ini tidak dapat dibatalkan. Ini akan menghapus semua riwayat percakapan Anda secara permanen.
+                            Tindakan ini tidak dapat dibatalkan. Ini akan menghapus semua riwayat percakapan Anda secara permanen dari server.
                         </AlertDialogDescription>
                         </AlertDialogHeader>
                         <AlertDialogFooter>
@@ -100,17 +107,17 @@ export default function HistoryPage() {
             )}
         </div>
         <p className="text-xs text-muted-foreground mb-4 italic text-center sm:text-left">
-            Info: Riwayat Anda disimpan di penyimpanan internal browser pada perangkat ini.
+            Info: Riwayat Anda disimpan dengan aman di cloud.
         </p>
       <Card className="border-0 shadow-none bg-transparent">
         <CardContent className="p-0">
-          {sortedHistory.length > 0 ? (
+          {history.length > 0 ? (
             <div className="space-y-2">
-              {sortedHistory.map((session) => (
+              {history.map((session) => (
                  <Card 
                     key={session.id} 
                     className="hover:bg-secondary/50 cursor-pointer transition-colors"
-                    onClick={() => handleLoadSession(session)}
+                    onClick={() => handleLoadSession(session.id)}
                 >
                     <CardContent className="p-4">
                         <p className="font-semibold text-base truncate">{session.title}</p>

@@ -9,12 +9,11 @@ export interface QAPair {
 }
 
 export interface ChatSession {
-  id: string; // Unique ID for the session, typically from the first question's timestamp
+  id: string; // Firestore document ID
+  userId: string; // ID of the user who owns this session
   title: string; // The first question of the session
   messages: QAPair[];
   classLevel: string;
   subject: string;
   startTime: string; // ISO string
 }
-
-    

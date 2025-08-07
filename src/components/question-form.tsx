@@ -7,6 +7,7 @@ import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { answerQuestion } from "@/ai/flows/answer-question";
 import type { ChatSession, QAPair } from "@/types";
+import { useAuth } from "@/context/auth-provider";
 
 import { Button } from "@/components/ui/button";
 import { Form, FormControl, FormField, FormItem, FormMessage } from "@/components/ui/form";
@@ -20,6 +21,9 @@ import { Card } from "./ui/card";
 import { Popover, PopoverContent, PopoverTrigger } from "./ui/popover";
 import { Label } from "./ui/label";
 import { useLocalStorage } from "@/hooks/use-local-storage";
+import { doc } from "firebase/firestore";
+import { db } from "@/lib/firebase/config";
+
 
 const formSchema = z.object({
   questionText: z.string().min(1, "Pertanyaan tidak boleh kosong."),
@@ -47,6 +51,7 @@ export default function QuestionForm({ currentSession, setCurrentSession }: Ques
   const [fileName, setFileName] = useState("");
   const [filePreview, setFilePreview] = useState<string | null>(null);
   const { toast } = useToast();
+  const { user } = useAuth();
   
   const [classLevel, setClassLevel] = useLocalStorage<string>('pintarai-classLevel', '');
   const [subject, setSubject] = useLocalStorage<string>('pintarai-subject', '');
@@ -68,6 +73,14 @@ export default function QuestionForm({ currentSession, setCurrentSession }: Ques
         setSubject('');
     }
   }, [classLevel, subject, setClassLevel, setSubject]);
+
+  // Sync form context with current session if it exists
+  useEffect(() => {
+    if (currentSession) {
+      if (classLevel !== currentSession.classLevel) setClassLevel(currentSession.classLevel);
+      if (subject !== currentSession.subject) setSubject(currentSession.subject);
+    }
+  }, [currentSession, classLevel, subject, setClassLevel, setSubject]);
 
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -94,6 +107,10 @@ export default function QuestionForm({ currentSession, setCurrentSession }: Ques
   }
 
   const onSubmit: SubmitHandler<FormValues> = async (data) => {
+    if (!user) {
+        toast({ variant: "destructive", title: "Anda harus masuk untuk bertanya." });
+        return;
+    }
     if(!classLevel || !subject) {
         toast({
             variant: "destructive",
@@ -134,8 +151,11 @@ export default function QuestionForm({ currentSession, setCurrentSession }: Ques
             messages: [...currentSession.messages, newQAPair]
         });
     } else {
+        // Create a new session
+        const newSessionId = doc(collection(db, 'chats')).id;
         setCurrentSession({
-            id: new Date().toISOString(),
+            id: newSessionId,
+            userId: user.uid,
             title: data.questionText,
             messages: [newQAPair],
             classLevel,
@@ -288,5 +308,3 @@ export default function QuestionForm({ currentSession, setCurrentSession }: Ques
     </Card>
   );
 }
-
-    

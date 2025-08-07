@@ -7,6 +7,7 @@ import { auth } from "@/lib/firebase/config";
 import { useAuth } from "@/context/auth-provider";
 import { useRouter, usePathname } from "next/navigation";
 import { Home, History, LogOut, PanelLeft, User, UserX, Trash2 } from "lucide-react";
+import { clearUserHistory } from "@/services/historyService";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -42,8 +43,10 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   const handleDeleteAccount = async () => {
     if (!user) return;
     try {
-      // Clear local storage history first
-      localStorage.removeItem('pintarai-history');
+      // First, delete all their data from Firestore
+      await clearUserHistory(user.uid);
+      
+      // Clear local storage session just in case
       localStorage.removeItem('pintarai-chat-session');
       
       // Then delete the user from Firebase Auth
@@ -208,7 +211,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
         <AlertDialogHeader>
           <AlertDialogTitle>Apakah Anda benar-benar yakin?</AlertDialogTitle>
           <AlertDialogDescription>
-            Tindakan ini tidak dapat dibatalkan. Ini akan menghapus akun Anda dan semua riwayat pertanyaan yang tersimpan di perangkat ini secara permanen.
+            Tindakan ini tidak dapat dibatalkan. Ini akan menghapus akun Anda dan semua riwayat pertanyaan Anda secara permanen.
           </AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter>
