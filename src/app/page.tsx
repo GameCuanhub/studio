@@ -4,10 +4,10 @@
 import { useState, useEffect } from "react";
 import AppLayout from "@/components/app-layout";
 import QuestionForm from "@/components/question-form";
-import { HistoryItem } from "@/types";
+import type { ChatSession, QAPair } from "@/types";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { useAuth } from "@/context/auth-provider";
-import { BrainCircuit, Sparkles, Copy, Download } from "lucide-react";
+import { BrainCircuit, Sparkles, Copy, Download, PlusCircle } from "lucide-react";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Card, CardContent } from "@/components/ui/card";
 import Image from 'next/image';
@@ -18,13 +18,15 @@ import { format } from "date-fns";
 import { id } from "date-fns/locale";
 import { useLocalStorage } from "@/hooks/use-local-storage";
 
-type Message = {
+type DisplayMessage = {
     type: 'user' | 'ai' | 'loading';
-    item: HistoryItem;
+    content: string;
+    item: QAPair;
 }
 
 export default function Home() {
-    const [messages, setMessages] = useLocalStorage<Message[]>("pintarai-chat-session", []);
+    const [currentSession, setCurrentSession] = useLocalStorage<ChatSession | null>("pintarai-chat-session", null);
+    const [history, setHistory] = useLocalStorage<ChatSession[]>("pintarai-history", []);
     const { user } = useAuth();
     const { toast } = useToast();
     const [isMounted, setIsMounted] = useState(false);
@@ -43,20 +45,17 @@ export default function Home() {
         return 'U';
     }
 
-    const handleCopy = (item: HistoryItem) => {
-        const textToCopy = `Pertanyaan:
-${item.questionText}
-
-Jawaban AI:
-${item.answer}`;
+    const handleCopy = (textToCopy: string) => {
         navigator.clipboard.writeText(textToCopy);
         toast({
             title: "Tersalin!",
-            description: "Riwayat pertanyaan dan jawaban telah disalin ke clipboard.",
+            description: "Jawaban AI telah disalin ke clipboard.",
         });
     };
 
-    const handleDownloadPdf = (item: HistoryItem) => {
+    const handleDownloadPdf = (item: QAPair) => {
+        if (!currentSession) return;
+        
         const doc = new jsPDF();
         const pageWidth = doc.internal.pageSize.getWidth();
         const margin = 15;
@@ -75,11 +74,11 @@ ${item.answer}`;
         // Metadata
         doc.setFont("helvetica", "normal");
         doc.setFontSize(10);
-        doc.text(`ID Sesi: ${item.id}`, margin, y);
+        doc.text(`ID Sesi: ${currentSession.id}`, margin, y);
         doc.text(`Tanggal: ${format(new Date(item.timestamp), "dd MMMM yyyy, HH:mm", { locale: id })}`, pageWidth - margin, y, { align: "right" });
         y += 7;
-        doc.text(`Jenjang: ${item.classLevel}`, margin, y);
-        doc.text(`Pelajaran: ${item.subject}`, pageWidth - margin, y, { align: "right" });
+        doc.text(`Jenjang: ${currentSession.classLevel}`, margin, y);
+        doc.text(`Pelajaran: ${currentSession.subject}`, pageWidth - margin, y, { align: "right" });
         y += 10;
 
         // Question Section
@@ -153,89 +152,133 @@ ${item.answer}`;
             doc.text(`Dokumen ini dibuat secara otomatis oleh PintarAI | Halaman ${i} dari ${pageCount}`, pageWidth / 2, 285, { align: "center" });
         }
 
-        doc.save(`PintarAI - ${item.summary.slice(0, 20)}.pdf`);
+        doc.save(`PintarAI - ${item.questionText.slice(0, 20)}.pdf`);
         toast({
             title: "Mengunduh PDF",
             description: "File PDF Anda sedang dibuat.",
+        });
+    };
+    
+    const startNewSession = () => {
+        if (currentSession && currentSession.messages.length > 0) {
+            const existingIndex = history.findIndex(s => s.id === currentSession.id);
+            if (existingIndex > -1) {
+                const updatedHistory = [...history];
+                updatedHistory[existingIndex] = currentSession;
+                setHistory(updatedHistory);
+            } else {
+                setHistory([currentSession, ...history]);
+            }
+        }
+        setCurrentSession(null);
+        toast({
+            title: "Sesi Baru Dimulai",
+            description: "Anda dapat memulai percakapan baru.",
         });
     };
 
     if (!isMounted) {
         return <AppLayout><div className="flex flex-col h-[calc(100vh-theme(spacing.24))]"></div></AppLayout>;
     }
+    
+    const displayMessages: DisplayMessage[] = currentSession?.messages.flatMap(item => [
+        { type: 'user', content: item.questionText, item },
+        { type: 'ai', content: item.answer, item },
+    ]) || [];
+    
+    // Add loading indicator if the last answer is pending
+    if (currentSession && currentSession.messages.length > 0) {
+        const lastMessage = currentSession.messages[currentSession.messages.length - 1];
+        if (lastMessage.answer === '...') {
+            displayMessages.push({ type: 'loading', content: '...', item: lastMessage });
+        }
+    }
 
 
     return (
         <AppLayout>
             <div className="flex flex-col h-[calc(100vh-theme(spacing.24))]">
+                 <div className="flex items-center justify-end mb-4">
+                    {currentSession && (
+                        <Button onClick={startNewSession}>
+                            <PlusCircle className="mr-2 h-4 w-4" />
+                            Mulai Sesi Baru
+                        </Button>
+                    )}
+                </div>
                 <div className="flex-1 overflow-y-auto pr-4">
                     <ScrollArea className="h-full">
                         <div className="space-y-6">
-                            {messages.length === 0 && (
+                            {!currentSession ? (
                                 <div className="text-center py-16 text-muted-foreground">
                                     <Sparkles className="mx-auto h-12 w-12 text-muted-foreground" />
                                     <h3 className="mt-4 text-lg font-semibold">Mulai Percakapan</h3>
-                                    <p className="mt-2 text-sm">Ajukan pertanyaan apa saja di bawah ini.</p>
+                                    <p className="mt-2 text-sm">Ajukan pertanyaan apa saja di bawah ini untuk memulai sesi baru.</p>
                                 </div>
-                            )}
-                            {messages.map((message, index) => (
-                                <div key={index} className={`flex items-start gap-4 ${message.type === 'user' ? 'justify-end' : ''}`}>
-                                    {message.type !== 'user' && (
-                                        <Avatar className="h-9 w-9 border border-primary shrink-0">
-                                             <AvatarFallback className="bg-primary text-primary-foreground">
-                                                <BrainCircuit className="h-5 w-5" />
-                                             </AvatarFallback>
-                                        </Avatar>
-                                    )}
-                                     <div className={`flex flex-col ${message.type === 'user' ? 'items-end' : 'items-start'}`}>
-                                        <Card className={`${message.type === 'user' ? 'bg-primary text-primary-foreground' : 'bg-secondary'}`}>
-                                            <CardContent className="p-3">
-                                                {message.type === 'loading' ? (
-                                                    <div className="flex items-center gap-2">
-                                                        <div className="w-2 h-2 rounded-full bg-muted-foreground animate-pulse"></div>
-                                                        <div className="w-2 h-2 rounded-full bg-muted-foreground animate-pulse delay-75"></div>
-                                                        <div className="w-2 h-2 rounded-full bg-muted-foreground animate-pulse delay-150"></div>
-                                                    </div>
-                                                ) : (
-                                                    <div className="prose prose-sm max-w-none text-sm whitespace-pre-wrap font-sans text-current leading-relaxed">
-                                                      {message.type === 'user' ? message.item.questionText : message.item.answer}
-                                                    </div>
-                                                )}
-                                                 {message.item.uploadedFileUri && message.item.uploadedFileUri.startsWith('data:image') && (
-                                                    <div className="mt-3 relative w-full max-w-xs h-48 border rounded-md overflow-hidden bg-background">
-                                                        <Image src={message.item.uploadedFileUri} alt="Lampiran file" layout="fill" objectFit="contain" />
-                                                    </div>
-                                                )}
-                                                {message.item.fileName && !message.item.uploadedFileUri?.startsWith('data:image') && (
-                                                    <p className="text-xs mt-2 opacity-80">File terlampir: {message.item.fileName}</p>
-                                                )}
-                                            </CardContent>
-                                        </Card>
-                                        {message.type === 'ai' && (
-                                             <div className="mt-2 flex items-center gap-1">
-                                                <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => handleCopy(message.item)}>
-                                                    <Copy className="h-4 w-4" />
-                                                </Button>
-                                                <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => handleDownloadPdf(message.item)}>
-                                                    <Download className="h-4 w-4" />
-                                                </Button>
-                                             </div>
+                            ) : (
+                                displayMessages.map((message, index) => (
+                                    <div key={index} className={`flex items-start gap-4 ${message.type === 'user' ? 'justify-end' : ''}`}>
+                                        {message.type !== 'user' && (
+                                            <Avatar className="h-9 w-9 border border-primary shrink-0">
+                                                 <AvatarFallback className="bg-primary text-primary-foreground">
+                                                    <BrainCircuit className="h-5 w-5" />
+                                                 </AvatarFallback>
+                                            </Avatar>
                                         )}
-                                     </div>
-                                     {message.type === 'user' && (
-                                         <Avatar className="h-9 w-9 border shrink-0">
-                                            <AvatarFallback>{getAvatarFallback()}</AvatarFallback>
-                                        </Avatar>
-                                    )}
-                                </div>
-                            ))}
+                                         <div className={`flex flex-col ${message.type === 'user' ? 'items-end' : 'items-start'}`}>
+                                            <Card className={`${message.type === 'user' ? 'bg-primary text-primary-foreground' : 'bg-secondary'}`}>
+                                                <CardContent className="p-3">
+                                                    {message.type === 'loading' ? (
+                                                        <div className="flex items-center gap-2">
+                                                            <div className="w-2 h-2 rounded-full bg-muted-foreground animate-pulse"></div>
+                                                            <div className="w-2 h-2 rounded-full bg-muted-foreground animate-pulse delay-75"></div>
+                                                            <div className="w-2 h-2 rounded-full bg-muted-foreground animate-pulse delay-150"></div>
+                                                        </div>
+                                                    ) : (
+                                                        <div className="prose prose-sm max-w-none text-sm whitespace-pre-wrap font-sans text-current leading-relaxed">
+                                                          {message.content}
+                                                        </div>
+                                                    )}
+                                                     {message.type === 'user' && message.item.uploadedFileUri && message.item.uploadedFileUri.startsWith('data:image') && (
+                                                        <div className="mt-3 relative w-full max-w-xs h-48 border rounded-md overflow-hidden bg-background">
+                                                            <Image src={message.item.uploadedFileUri} alt="Lampiran file" layout="fill" objectFit="contain" />
+                                                        </div>
+                                                    )}
+                                                    {message.type === 'user' && message.item.fileName && !message.item.uploadedFileUri?.startsWith('data:image') && (
+                                                        <p className="text-xs mt-2 opacity-80">File terlampir: {message.item.fileName}</p>
+                                                    )}
+                                                </CardContent>
+                                            </Card>
+                                            {message.type === 'ai' && (
+                                                 <div className="mt-2 flex items-center gap-2">
+                                                    <Button variant="outline" size="sm" onClick={() => handleCopy(message.item.answer)}>
+                                                        <Copy className="mr-2 h-4 w-4" />
+                                                        Salin
+                                                    </Button>
+                                                    <Button variant="outline" size="sm" onClick={() => handleDownloadPdf(message.item)}>
+                                                        <Download className="mr-2 h-4 w-4" />
+                                                        Unduh PDF
+                                                    </Button>
+                                                 </div>
+                                            )}
+                                         </div>
+                                         {message.type === 'user' && (
+                                             <Avatar className="h-9 w-9 border shrink-0">
+                                                <AvatarFallback>{getAvatarFallback()}</AvatarFallback>
+                                            </Avatar>
+                                        )}
+                                    </div>
+                                ))
+                            )}
                         </div>
                     </ScrollArea>
                 </div>
                 <div className="mt-auto pt-4">
-                   <QuestionForm setMessages={setMessages} />
+                   <QuestionForm currentSession={currentSession} setCurrentSession={setCurrentSession} />
                 </div>
             </div>
         </AppLayout>
     );
 }
+
+    

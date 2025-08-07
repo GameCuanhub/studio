@@ -6,21 +6,20 @@ import { useForm, SubmitHandler } from "react-hook-form";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { answerQuestion } from "@/ai/flows/answer-question";
-import { summarizeQuestion } from "@/ai/flows/summarize-question";
-import { useLocalStorage } from "@/hooks/use-local-storage";
-import type { HistoryItem } from "@/types";
+import type { ChatSession, QAPair } from "@/types";
 
 import { Button } from "@/components/ui/button";
 import { Form, FormControl, FormField, FormItem, FormMessage } from "@/components/ui/form";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
-import { Loader2, Send, Upload, Paperclip, XCircle, Mic } from "lucide-react";
+import { Loader2, Send, Paperclip, XCircle } from "lucide-react";
 import { CLASS_LEVELS, SUBJECTS_BY_LEVEL } from "@/lib/constants";
 import { useToast } from "@/hooks/use-toast";
 import Image from "next/image";
 import { Card } from "./ui/card";
 import { Popover, PopoverContent, PopoverTrigger } from "./ui/popover";
 import { Label } from "./ui/label";
+import { useLocalStorage } from "@/hooks/use-local-storage";
 
 const formSchema = z.object({
   questionText: z.string().min(1, "Pertanyaan tidak boleh kosong."),
@@ -38,25 +37,19 @@ const readFileAsDataURL = (file: File): Promise<string> => {
   });
 };
 
-type Message = {
-    type: 'user' | 'ai' | 'loading';
-    item: HistoryItem;
-}
-
 interface QuestionFormProps {
-    setMessages: Dispatch<SetStateAction<Message[]>>;
+    currentSession: ChatSession | null;
+    setCurrentSession: Dispatch<SetStateAction<ChatSession | null>>;
 }
 
-export default function QuestionForm({ setMessages }: QuestionFormProps) {
+export default function QuestionForm({ currentSession, setCurrentSession }: QuestionFormProps) {
   const [loading, setLoading] = useState(false);
-  const [history, setHistory] = useLocalStorage<HistoryItem[]>("pintarai-history", []);
   const [fileName, setFileName] = useState("");
   const [filePreview, setFilePreview] = useState<string | null>(null);
   const { toast } = useToast();
   
   const [classLevel, setClassLevel] = useLocalStorage<string>('pintarai-classLevel', '');
   const [subject, setSubject] = useLocalStorage<string>('pintarai-subject', '');
-
 
   const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
@@ -75,7 +68,6 @@ export default function QuestionForm({ setMessages }: QuestionFormProps) {
         setSubject('');
     }
   }, [classLevel, subject, setClassLevel, setSubject]);
-
 
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -127,26 +119,31 @@ export default function QuestionForm({ setMessages }: QuestionFormProps) {
       }
     }
     
-    const userMessage: Message = {
-        type: 'user',
-        item: {
-            id: new Date().toISOString() + '-q',
-            questionText: data.questionText,
-            answer: '',
-            summary: '',
+    const newQAPair: QAPair = {
+        id: new Date().toISOString(),
+        questionText: data.questionText,
+        answer: '...', // Placeholder for loading state
+        timestamp: new Date().toISOString(),
+        uploadedFileUri,
+        fileName: data.file?.[0]?.name,
+    };
+
+    if (currentSession) {
+        setCurrentSession({
+            ...currentSession,
+            messages: [...currentSession.messages, newQAPair]
+        });
+    } else {
+        setCurrentSession({
+            id: new Date().toISOString(),
+            title: data.questionText,
+            messages: [newQAPair],
             classLevel,
             subject,
-            timestamp: new Date().toISOString(),
-            uploadedFileUri,
-            fileName: data.file?.[0]?.name,
-        }
-    }
-    const loadingMessage: Message = {
-        type: 'loading',
-        item: { ...userMessage.item, id: new Date().toISOString() + '-l' }
+            startTime: new Date().toISOString(),
+        });
     }
 
-    setMessages(prev => [...prev, userMessage, loadingMessage]);
     form.reset();
     resetFileInput();
 
@@ -157,30 +154,14 @@ export default function QuestionForm({ setMessages }: QuestionFormProps) {
         questionText: data.questionText,
         uploadedFileUri,
       });
-
-      const summaryResponse = await summarizeQuestion({
-         question: data.questionText,
+      
+      setCurrentSession(prevSession => {
+          if (!prevSession) return null;
+          const updatedMessages = prevSession.messages.map(msg => 
+              msg.id === newQAPair.id ? { ...msg, answer: answerResponse.answer, timestamp: new Date().toISOString() } : msg
+          );
+          return { ...prevSession, messages: updatedMessages };
       });
-
-      const newHistoryItem: HistoryItem = {
-        id: new Date().toISOString(),
-        classLevel,
-        subject,
-        questionText: data.questionText,
-        answer: answerResponse.answer,
-        summary: summaryResponse.summary,
-        timestamp: new Date().toISOString(),
-        uploadedFileUri: uploadedFileUri,
-        fileName: data.file?.[0]?.name,
-      };
-
-      const aiMessage: Message = {
-          type: 'ai',
-          item: newHistoryItem
-      };
-
-      setMessages(prev => prev.filter(p => p.type !== 'loading').concat(aiMessage));
-      setHistory([newHistoryItem, ...history]);
 
     } catch (error: any) {
       toast({
@@ -188,7 +169,13 @@ export default function QuestionForm({ setMessages }: QuestionFormProps) {
         title: "Kesalahan AI",
         description: error.message || "Gagal mendapatkan jawaban dari AI.",
       });
-      setMessages(prev => prev.filter(p => p.type !== 'loading'));
+      setCurrentSession(prevSession => {
+         if (!prevSession) return null;
+          const updatedMessages = prevSession.messages.map(msg => 
+              msg.id === newQAPair.id ? { ...msg, answer: `Maaf, terjadi kesalahan: ${error.message}` } : msg
+          );
+          return { ...prevSession, messages: updatedMessages };
+      });
     } finally {
       setLoading(false);
     }
@@ -253,7 +240,7 @@ export default function QuestionForm({ setMessages }: QuestionFormProps) {
             </Form>
         </div>
         <div className="flex items-center justify-between text-xs text-muted-foreground px-4 py-2 border-t">
-            <p>PintarAI dapat membuat kesalahan. Pertimbangkan untuk memeriksa informasi penting.</p>
+            <p>PintarAI dapat membuat kesalahan. Periksa info penting.</p>
              <Popover>
                 <PopoverTrigger asChild>
                     <Button variant="ghost" size="sm">{classLevel && subject ? `${classLevel} / ${subject}` : 'Pilih Konteks'}</Button>
@@ -269,7 +256,7 @@ export default function QuestionForm({ setMessages }: QuestionFormProps) {
                         <div className="grid gap-2">
                             <div className="grid grid-cols-3 items-center gap-4">
                                 <Label htmlFor="classLevel">Jenjang</Label>
-                                <Select onValueChange={setClassLevel} value={classLevel}>
+                                <Select onValueChange={setClassLevel} value={classLevel} disabled={!!currentSession}>
                                     <SelectTrigger className="col-span-2 h-8">
                                         <SelectValue placeholder="Pilih jenjang" />
                                     </SelectTrigger>
@@ -282,7 +269,7 @@ export default function QuestionForm({ setMessages }: QuestionFormProps) {
                             </div>
                             <div className="grid grid-cols-3 items-center gap-4">
                                 <Label htmlFor="subject">Pelajaran</Label>
-                                <Select onValueChange={setSubject} value={subject} disabled={!classLevel}>
+                                <Select onValueChange={setSubject} value={subject} disabled={!classLevel || !!currentSession}>
                                     <SelectTrigger className="col-span-2 h-8">
                                         <SelectValue placeholder="Pilih pelajaran" />
                                     </SelectTrigger>
@@ -302,3 +289,4 @@ export default function QuestionForm({ setMessages }: QuestionFormProps) {
   );
 }
 
+    
