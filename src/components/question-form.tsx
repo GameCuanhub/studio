@@ -21,7 +21,7 @@ import { Card } from "./ui/card";
 import { Popover, PopoverContent, PopoverTrigger } from "./ui/popover";
 import { Label } from "./ui/label";
 import { useLocalStorage } from "@/hooks/use-local-storage";
-import { doc } from "firebase/firestore";
+import { doc, collection } from "firebase/firestore";
 import { db } from "@/lib/firebase/config";
 
 
