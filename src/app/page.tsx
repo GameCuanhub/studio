@@ -68,19 +68,29 @@ export default function Home() {
 
     useEffect(() => {
         const getPrompts = () => {
-            const level = classLevel.split(" ")[0] as keyof typeof EXAMPLE_PROMPTS;
+            const levelKey = classLevel.split(" ")[0] as keyof typeof EXAMPLE_PROMPTS;
             let prompts: ExamplePrompt[] = [];
+            
+            const levelPrompts = EXAMPLE_PROMPTS[levelKey];
 
-            if (level && subject && EXAMPLE_PROMPTS[level] && EXAMPLE_PROMPTS[level][subject]) {
-                prompts = EXAMPLE_PROMPTS[level][subject];
-            } else if (level && EXAMPLE_PROMPTS[level]) {
-                // Fallback to general prompts for the level if subject-specific are not available
-                prompts = EXAMPLE_PROMPTS[level]['Umum'] || [];
+            if (levelPrompts) {
+                 // Check if it's an array (like "Umum") or an object of subjects
+                if (Array.isArray(levelPrompts)) {
+                    prompts = levelPrompts;
+                } else {
+                    // It's an object of subjects, try to find the specific subject
+                    if (subject && levelPrompts[subject]) {
+                        prompts = levelPrompts[subject];
+                    } else if (levelPrompts['Umum']) {
+                        // Fallback to "Umum" for the specific level if subject not found
+                        prompts = levelPrompts['Umum'];
+                    }
+                }
             }
             
-            // If still no prompts, use generic ones
+            // If still no prompts, use the most generic ones
             if (prompts.length === 0) {
-                prompts = EXAMPLE_PROMPTS['Umum'];
+                prompts = EXAMPLE_PROMPTS['Umum'] as ExamplePrompt[];
             }
 
             // Shuffle and pick 4
@@ -419,5 +429,7 @@ export default function Home() {
         </AppLayout>
     );
 }
+
+    
 
     
