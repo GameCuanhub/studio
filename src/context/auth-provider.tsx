@@ -25,54 +25,45 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const router = useRouter();
 
   useEffect(() => {
+    nProgress.start();
     const unsubscribe = onAuthStateChanged(auth, (user) => {
-        if (user) {
-            // Force reload user data to get the latest emailVerified state
-            user.reload().then(() => {
-                const reloadedUser = auth.currentUser;
-                setUser(reloadedUser);
-                setLoading(false);
-            });
-        } else {
-            setUser(null);
-            setLoading(false);
-        }
-    });
+      if (user) {
+        user.reload().then(() => {
+          const reloadedUser = auth.currentUser;
+          const isAuthPage = ["/login", "/register", "/forgot-password"].includes(pathname);
+          const isVerificationPage = pathname === '/verify-email';
 
-    return () => unsubscribe();
-  }, []);
-
-  useEffect(() => {
-    if (loading) {
-      nProgress.start();
-      return;
-    }
-
-    const isAuthPage = ["/login", "/register", "/forgot-password"].includes(pathname);
-    const isVerificationPage = pathname === '/verify-email';
-
-    if (!user) {
-      if (!isAuthPage && !isVerificationPage) {
-        router.push("/login");
+          if (!reloadedUser?.emailVerified) {
+            if (!isVerificationPage && pathname !== '/login') {
+              router.push(`/verify-email?email=${reloadedUser?.email}`);
+            }
+          } else { // email is verified
+            if (isAuthPage || isVerificationPage) {
+              router.push("/");
+            }
+          }
+          setUser(reloadedUser);
+          setLoading(false);
+          nProgress.done();
+        });
       } else {
+        const isAuthPage = ["/login", "/register", "/forgot-password", "/verify-email"].includes(pathname);
+        if (!isAuthPage) {
+          router.push("/login");
+        }
+        setUser(null);
+        setLoading(false);
         nProgress.done();
       }
-    } else { // user is logged in
-      if (!user.emailVerified) {
-        if (!isVerificationPage && pathname !== '/login') {
-          router.push(`/verify-email?email=${user.email}`);
-        } else {
-          nProgress.done();
-        }
-      } else { // email is verified
-        if (isAuthPage || isVerificationPage) {
-          router.push("/");
-        } else {
-          nProgress.done();
-        }
+    });
+
+    return () => {
+      unsubscribe();
+      if (nProgress.isStarted()) {
+        nProgress.done();
       }
-    }
-  }, [user, loading, pathname, router]);
+    };
+  }, [pathname, router]);
 
 
   if (loading) {
