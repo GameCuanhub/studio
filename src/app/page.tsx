@@ -161,14 +161,15 @@ export default function Home() {
     
     const startNewSession = () => {
         if (currentSession && currentSession.messages?.length > 0) {
-            const existingIndex = history.findIndex(s => s.id === currentSession.id);
+            const existingIndex = history.findIndex(s => s && s.id === currentSession.id);
+            let updatedHistory;
             if (existingIndex > -1) {
-                const updatedHistory = [...history];
+                updatedHistory = [...history];
                 updatedHistory[existingIndex] = currentSession;
-                setHistory(updatedHistory);
             } else {
-                setHistory([currentSession, ...history]);
+                 updatedHistory = [currentSession, ...history];
             }
+             setHistory(updatedHistory.filter(Boolean));
         }
         setCurrentSession(null);
         toast({
@@ -181,18 +182,15 @@ export default function Home() {
         return <AppLayout><div className="flex flex-col h-[calc(100vh-theme(spacing.24))]"></div></AppLayout>;
     }
     
-    const displayMessages: DisplayMessage[] = (currentSession?.messages || []).flatMap(item => [
-        { type: 'user', content: item.questionText, item },
-        { type: 'ai', content: item.answer, item },
-    ]);
-    
-    // Add loading indicator if the last answer is pending
-    if (currentSession && currentSession.messages?.length > 0) {
-        const lastMessage = currentSession.messages[currentSession.messages.length - 1];
-        if (lastMessage.answer === '...') {
-            displayMessages.push({ type: 'loading', content: '...', item: lastMessage });
+    const displayMessages: DisplayMessage[] = (currentSession?.messages || []).flatMap(item => {
+        const messages: DisplayMessage[] = [{ type: 'user', content: item.questionText, item }];
+        if (item.answer === '...') {
+             messages.push({ type: 'loading', content: '...', item });
+        } else {
+             messages.push({ type: 'ai', content: item.answer, item });
         }
-    }
+        return messages;
+    });
 
 
     return (
