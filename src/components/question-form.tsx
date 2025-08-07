@@ -15,7 +15,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Loader2, Send, Paperclip, XCircle } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import Image from "next/image";
-import { doc, collection } from "firebase/firestore";
+import { doc, collection, getDoc, runTransaction } from "firebase/firestore";
 import { db } from "@/lib/firebase/config";
 
 
@@ -112,6 +112,29 @@ export default function QuestionForm({
     }
     setLoading(true);
 
+     // Check and decrement token balance within a transaction
+    try {
+        const userRef = doc(db, "users", user.uid);
+        await runTransaction(db, async (transaction) => {
+            const userDoc = await transaction.get(userRef);
+            if (!userDoc.exists() || userDoc.data().tokenBalance < 1) {
+                throw new Error("Token tidak cukup. Silakan isi ulang token Anda di halaman profil.");
+            }
+            
+            const newBalance = userDoc.data().tokenBalance - 1;
+            transaction.update(userRef, { tokenBalance: newBalance });
+        });
+    } catch (error: any) {
+         toast({
+            variant: "destructive",
+            title: "Gagal Mengirim Pertanyaan",
+            description: error.message || "Terjadi kesalahan saat memeriksa saldo token.",
+        });
+        setLoading(false);
+        return;
+    }
+
+
     let uploadedFileUri: string | undefined = undefined;
     if (data.file && data.file[0]) {
       try {
@@ -182,18 +205,18 @@ export default function QuestionForm({
       });
 
     } catch (error: any) {
-      toast({
-        variant: "destructive",
-        title: "Kesalahan AI",
-        description: error.message || "Gagal mendapatkan jawaban dari AI.",
-      });
-      setCurrentSession(prevSession => {
-         if (!prevSession) return null;
-          const updatedMessages = prevSession.messages.map(msg => 
-              msg.id === newQAPair.id ? { ...msg, answer: `Maaf, terjadi kesalahan: ${error.message}` } : msg
-          );
-          return { ...prevSession, messages: updatedMessages };
-      });
+        toast({
+            variant: "destructive",
+            title: "Kesalahan AI",
+            description: error.message || "Gagal mendapatkan jawaban dari AI.",
+        });
+        setCurrentSession(prevSession => {
+            if (!prevSession) return null;
+            const updatedMessages = prevSession.messages.map(msg => 
+                msg.id === newQAPair.id ? { ...msg, answer: `Maaf, terjadi kesalahan: ${error.message}` } : msg
+            );
+            return { ...prevSession, messages: updatedMessages };
+        });
     } finally {
       setLoading(false);
     }

@@ -1,13 +1,28 @@
+
 rules_version = '2';
 
 service cloud.firestore {
   match /databases/{database}/documents {
-    match /chats/{chatId} {
-      // Allow create if the user is authenticated and is the owner of the new document.
-      allow create: if request.auth != null && request.auth.uid == request.resource.data.userId;
-      
-      // Allow read, update, and delete if the user is authenticated and is the owner of the existing document.
-      allow read, update, delete: if request.auth != null && request.auth.uid == resource.data.userId;
+
+    // Helper function to check ownership
+    function isOwner(userId) {
+      return request.auth.uid == userId;
+    }
+
+    // Rules for user profiles
+    match /users/{userId} {
+      // Users can create their own profile
+      allow create: if isOwner(userId);
+      // Users can read and update their own profile
+      allow read, update: if isOwner(userId);
+    }
+    
+    // Rules for chat sessions
+    match /chats/{document=**} {
+      // Allow create if the user is the owner of the new document
+      allow create: if isOwner(request.resource.data.userId);
+      // Allow read, update, delete if the user is the owner of the existing document
+      allow read, update, delete: if isOwner(resource.data.userId);
     }
   }
 }

@@ -17,3 +17,11 @@ export interface ChatSession {
   subject: string;
   startTime: string; // ISO string
 }
+
+export interface UserProfile {
+    uid: string;
+    email: string | null;
+    displayName: string | null;
+    photoURL: string | null;
+    tokenBalance: number;
+}

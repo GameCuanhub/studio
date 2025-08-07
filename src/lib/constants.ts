@@ -21,9 +21,8 @@ export const SUBJECTS_BY_LEVEL = {
     "Matematika",
     "Bahasa Indonesia",
     "Pendidikan Pancasila (PPKn)",
-    "IPA (Sains)",
-    "IPS (Sejarah, Geografi)",
-    "Seni Budaya dan Prakarya (SBdP)",
+    "Ilmu Pengetahuan Alam dan Sosial (IPAS)",
+    "Seni Budaya",
     "Pendidikan Jasmani (PJOK)",
     "Lainnya",
   ],
@@ -80,3 +79,24 @@ export const ICONS: { [key: string]: LucideIcon } = {
     Languages,
     Handshake
 };
+
+export const TOKEN_PACKAGES = [
+    {
+        id: "starter",
+        tokens: 50,
+        price: 10000,
+        description: "Cocok untuk penggunaan ringan dan mencoba fitur."
+    },
+    {
+        id: "student",
+        tokens: 250,
+        price: 45000,
+        description: "Paket paling populer untuk kebutuhan belajar harian."
+    },
+    {
+        id: "genius",
+        tokens: 1000,
+        price: 150000,
+        description: "Terbaik untuk pengguna berat dan persiapan ujian."
+    }
+]
