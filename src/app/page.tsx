@@ -181,10 +181,10 @@ export default function Home() {
         return <AppLayout><div className="flex flex-col h-[calc(100vh-theme(spacing.24))]"></div></AppLayout>;
     }
     
-    const displayMessages: DisplayMessage[] = currentSession?.messages.flatMap(item => [
+    const displayMessages: DisplayMessage[] = (currentSession?.messages || []).flatMap(item => [
         { type: 'user', content: item.questionText, item },
         { type: 'ai', content: item.answer, item },
-    ]) || [];
+    ]);
     
     // Add loading indicator if the last answer is pending
     if (currentSession && currentSession.messages.length > 0) {
@@ -279,6 +279,5 @@ export default function Home() {
             </div>
         </AppLayout>
     );
-}
 
     
