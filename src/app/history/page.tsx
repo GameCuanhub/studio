@@ -101,7 +101,7 @@ ${item.answer}`;
             doc.addImage(item.uploadedFileUri, 'JPEG', margin, y, imgWidth, imgHeight);
             y += imgHeight + 10;
         } catch (e) {
-            console.error("Error adding image to PDF:", e);
+            console.error("Gagal menambahkan gambar ke PDF:", e);
             doc.setFont("helvetica", "italic");
             doc.setFontSize(10);
             doc.text("Tidak dapat menampilkan gambar pratinjau.", margin, y);
