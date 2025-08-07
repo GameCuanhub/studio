@@ -187,7 +187,7 @@ export default function Home() {
     ]);
     
     // Add loading indicator if the last answer is pending
-    if (currentSession && currentSession.messages.length > 0) {
+    if (currentSession && currentSession.messages?.length > 0) {
         const lastMessage = currentSession.messages[currentSession.messages.length - 1];
         if (lastMessage.answer === '...') {
             displayMessages.push({ type: 'loading', content: '...', item: lastMessage });
@@ -279,5 +279,7 @@ export default function Home() {
             </div>
         </AppLayout>
     );
+
+    
 
     
