@@ -141,9 +141,15 @@ export default function QuestionForm({ currentSession, setCurrentSession }: Ques
         questionText: data.questionText,
         answer: '...', // Placeholder for loading state
         timestamp: new Date().toISOString(),
-        uploadedFileUri,
-        fileName: data.file?.[0]?.name,
     };
+
+    if (uploadedFileUri) {
+        newQAPair.uploadedFileUri = uploadedFileUri;
+    }
+    if (data.file?.[0]?.name) {
+        newQAPair.fileName = data.file[0].name;
+    }
+
 
     if (currentSession) {
         setCurrentSession({

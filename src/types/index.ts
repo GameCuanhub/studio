@@ -4,8 +4,8 @@ export interface QAPair {
   questionText: string;
   answer: string;
   timestamp: string; // ISO string for when the answer was received
-  uploadedFileUri?: string;
-  fileName?: string;
+  uploadedFileUri?: string | null;
+  fileName?: string | null;
 }
 
 export interface ChatSession {
