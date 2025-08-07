@@ -43,34 +43,37 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   }, []);
 
   useEffect(() => {
-    if (loading) return;
-
-    const isAuthPage = ["/login", "/register", "/forgot-password"].includes(pathname);
-    
-    // If the user is not logged in and not on an authentication page, redirect to login
-    if (!user && !isAuthPage && pathname !== '/verify-email') {
-      router.push("/login");
+    if (loading) {
+      nProgress.start();
       return;
     }
 
-    // If the user is logged in
-    if (user) {
-        // If email is not verified and they are not on the verification or login page, redirect them.
-        if (!user.emailVerified && pathname !== '/verify-email' && pathname !== '/login') {
-            router.push(`/verify-email?email=${user.email}`);
-            return;
-        }
+    const isAuthPage = ["/login", "/register", "/forgot-password"].includes(pathname);
+    const isVerificationPage = pathname === '/verify-email';
 
-        // If email is verified and they are on an auth page or verification page, redirect to home
-        if (user.emailVerified && (isAuthPage || pathname === '/verify-email')) {
-            router.push("/");
-            return;
+    if (!user) {
+      if (!isAuthPage && !isVerificationPage) {
+        router.push("/login");
+      } else {
+        nProgress.done();
+      }
+    } else { // user is logged in
+      if (!user.emailVerified) {
+        if (!isVerificationPage && pathname !== '/login') {
+          router.push(`/verify-email?email=${user.email}`);
+        } else {
+          nProgress.done();
         }
+      } else { // email is verified
+        if (isAuthPage || isVerificationPage) {
+          router.push("/");
+        } else {
+          nProgress.done();
+        }
+      }
     }
-
-    nProgress.done();
-
   }, [user, loading, pathname, router]);
+
 
   if (loading) {
     return (
