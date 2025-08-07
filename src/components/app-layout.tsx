@@ -34,6 +34,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
 
 
   const handleLogout = async () => {
+    localStorage.removeItem('pintarai-chat-session');
     await signOut(auth);
     router.push("/login");
   };
@@ -43,6 +44,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
     try {
       // Clear local storage history first
       localStorage.removeItem('pintarai-history');
+      localStorage.removeItem('pintarai-chat-session');
       
       // Then delete the user from Firebase Auth
       await deleteUser(user);
