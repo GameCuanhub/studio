@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import AppLayout from "@/components/app-layout";
 import QuestionForm from "@/components/question-form";
 import { HistoryItem } from "@/types";
@@ -16,6 +16,7 @@ import { useToast } from "@/hooks/use-toast";
 import jsPDF from "jspdf";
 import { format } from "date-fns";
 import { id } from "date-fns/locale";
+import { useLocalStorage } from "@/hooks/use-local-storage";
 
 type Message = {
     type: 'user' | 'ai' | 'loading';
@@ -23,9 +24,14 @@ type Message = {
 }
 
 export default function Home() {
-    const [messages, setMessages] = useState<Message[]>([]);
+    const [messages, setMessages] = useLocalStorage<Message[]>("pintarai-chat-session", []);
     const { user } = useAuth();
     const { toast } = useToast();
+    const [isMounted, setIsMounted] = useState(false);
+
+    useEffect(() => {
+        setIsMounted(true);
+    }, []);
 
     const getAvatarFallback = () => {
         if (user?.displayName) {
@@ -154,6 +160,11 @@ ${item.answer}`;
         });
     };
 
+    if (!isMounted) {
+        return <AppLayout><div className="flex flex-col h-[calc(100vh-theme(spacing.24))]"></div></AppLayout>;
+    }
+
+
     return (
         <AppLayout>
             <div className="flex flex-col h-[calc(100vh-theme(spacing.24))]">
@@ -176,7 +187,7 @@ ${item.answer}`;
                                              </AvatarFallback>
                                         </Avatar>
                                     )}
-                                     <div className={`group relative ${message.type === 'user' ? 'flex justify-end' : ''}`}>
+                                     <div className={`flex flex-col ${message.type === 'user' ? 'items-end' : 'items-start'}`}>
                                         <Card className={`${message.type === 'user' ? 'bg-primary text-primary-foreground' : 'bg-secondary'}`}>
                                             <CardContent className="p-3">
                                                 {message.type === 'loading' ? (
@@ -201,7 +212,7 @@ ${item.answer}`;
                                             </CardContent>
                                         </Card>
                                         {message.type === 'ai' && (
-                                             <div className="absolute top-1/2 -translate-y-1/2 -right-12 opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-1">
+                                             <div className="mt-2 flex items-center gap-1">
                                                 <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => handleCopy(message.item)}>
                                                     <Copy className="h-4 w-4" />
                                                 </Button>

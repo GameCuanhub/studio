@@ -1,3 +1,4 @@
+
 'use server';
 
 /**
@@ -19,7 +20,7 @@ const SummarizeQuestionInputSchema = z.object({
 export type SummarizeQuestionInput = z.infer<typeof SummarizeQuestionInputSchema>;
 
 const SummarizeQuestionOutputSchema = z.object({
-  summary: z.string().describe('A summarized version of the question.'),
+  summary: z.string().describe('A summarized version of the question in Indonesian.'),
 });
 export type SummarizeQuestionOutput = z.infer<typeof SummarizeQuestionOutputSchema>;
 
@@ -31,7 +32,7 @@ const prompt = ai.definePrompt({
   name: 'summarizeQuestionPrompt',
   input: {schema: SummarizeQuestionInputSchema},
   output: {schema: SummarizeQuestionOutputSchema},
-  prompt: `You are an expert at summarizing questions.  Given the following question, create a short summary that captures the essence of what is being asked.\n\nQuestion: {{{question}}}`,
+  prompt: `Anda adalah seorang ahli dalam merangkum pertanyaan. Buatlah ringkasan singkat dalam Bahasa Indonesia yang menangkap inti dari apa yang ditanyakan.\n\nPertanyaan: {{{question}}}`,
 });
 
 const summarizeQuestionFlow = ai.defineFlow(
