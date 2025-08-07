@@ -7,7 +7,7 @@ import QuestionForm from "@/components/question-form";
 import type { ChatSession, QAPair } from "@/types";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { useAuth } from "@/context/auth-provider";
-import { BrainCircuit, Sparkles, Copy, Download, PlusCircle, Book, FlaskConical, History, Landmark } from "lucide-react";
+import { BrainCircuit, Sparkles, Copy, Download, PlusCircle, Book, FlaskConical, Landmark, History, LucideIcon } from "lucide-react";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import Image from 'next/image';
@@ -19,7 +19,7 @@ import { id } from "date-fns/locale";
 import { useLocalStorage } from "@/hooks/use-local-storage";
 import { saveChatSession, getChatSession } from "@/services/historyService";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { CLASS_LEVELS, SUBJECTS_BY_LEVEL } from "@/lib/constants";
+import { CLASS_LEVELS, SUBJECTS_BY_LEVEL, EXAMPLE_PROMPTS, ExamplePrompt } from "@/lib/constants";
 import { Label } from "@/components/ui/label";
 
 
@@ -40,6 +40,7 @@ export default function Home() {
     const [subject, setSubject] = useLocalStorage<string>('pintarai-subject', '');
     const [question, setQuestion] = useState("");
     const formRef = useRef<HTMLFormElement>(null);
+    const [examplePrompts, setExamplePrompts] = useState<ExamplePrompt[]>([]);
 
 
     // This effect runs when the component mounts or the user changes.
@@ -64,6 +65,30 @@ export default function Home() {
              saveChatSession(currentSession);
         }
     }, [currentSession, user]);
+
+    useEffect(() => {
+        const getPrompts = () => {
+            const level = classLevel.split(" ")[0] as keyof typeof EXAMPLE_PROMPTS;
+            let prompts: ExamplePrompt[] = [];
+
+            if (level && subject && EXAMPLE_PROMPTS[level] && EXAMPLE_PROMPTS[level][subject]) {
+                prompts = EXAMPLE_PROMPTS[level][subject];
+            } else if (level && EXAMPLE_PROMPTS[level]) {
+                // Fallback to general prompts for the level if subject-specific are not available
+                prompts = EXAMPLE_PROMPTS[level]['Umum'] || [];
+            }
+            
+            // If still no prompts, use generic ones
+            if (prompts.length === 0) {
+                prompts = EXAMPLE_PROMPTS['Umum'];
+            }
+
+            // Shuffle and pick 4
+            return prompts.sort(() => 0.5 - Math.random()).slice(0, 4);
+        };
+
+        setExamplePrompts(getPrompts());
+    }, [classLevel, subject]);
 
 
     const getAvatarFallback = () => {
@@ -236,12 +261,15 @@ export default function Home() {
         return messages;
     });
 
-    const examplePrompts = [
-        { icon: Book, title: "Buatkan soal esai", prompt: "Buatkan soal esai tentang sejarah proklamasi kemerdekaan Indonesia untuk kelas 5 SD." },
-        { icon: FlaskConical, title: "Jelaskan konsep sulit", prompt: "Jelaskan konsep fotosintesis dengan bahasa yang mudah dipahami anak SMP." },
-        { icon: Landmark, title: "Beri ide proyek", prompt: "Beri saya 3 ide proyek IPS tentang keragaman budaya di Indonesia untuk tugas kelompok kelas 8." },
-        { icon: History, title: "Buat ringkasan", prompt: "Ringkas bab 5 buku paket Sejarah kelas 11 tentang pendudukan Jepang." }
-    ];
+    const getIcon = (iconName: string): LucideIcon => {
+        switch (iconName) {
+            case 'Book': return Book;
+            case 'FlaskConical': return FlaskConical;
+            case 'Landmark': return Landmark;
+            case 'History': return History;
+            default: return Sparkles;
+        }
+    }
 
     return (
         <AppLayout>
@@ -269,7 +297,7 @@ export default function Home() {
                                         <div className="flex items-center gap-4">
                                              <div className="grid gap-2 w-full">
                                                 <Label htmlFor="classLevel" className="text-white">Jenjang</Label>
-                                                <Select onValueChange={setClassLevel} value={classLevel}>
+                                                <Select onValueChange={(value) => { setClassLevel(value); setSubject(''); }} value={classLevel}>
                                                     <SelectTrigger id="classLevel" className="w-full bg-secondary border-secondary">
                                                         <SelectValue placeholder="Pilih jenjang" />
                                                     </SelectTrigger>
@@ -296,23 +324,26 @@ export default function Home() {
                                         </div>
                                     </div>
                                     <div className="grid grid-cols-2 gap-4 w-full max-w-2xl">
-                                        {examplePrompts.map((prompt, index) => (
-                                            <Card 
-                                                key={index}
-                                                className="bg-secondary p-4 rounded-lg hover:bg-border transition-colors cursor-pointer group"
-                                                onClick={() => handleExampleClick(prompt.prompt)}
-                                            >
-                                                <div className="flex items-start gap-4">
-                                                    <div className="bg-background p-2 rounded-full">
-                                                        <prompt.icon className="w-5 h-5 text-primary" />
+                                        {examplePrompts.map((prompt, index) => {
+                                            const Icon = getIcon(prompt.icon);
+                                            return (
+                                                <Card 
+                                                    key={index}
+                                                    className="bg-secondary p-4 rounded-lg hover:bg-border transition-colors cursor-pointer group"
+                                                    onClick={() => handleExampleClick(prompt.prompt)}
+                                                >
+                                                    <div className="flex items-start gap-4">
+                                                        <div className="bg-background p-2 rounded-full">
+                                                            <Icon className="w-5 h-5 text-primary" />
+                                                        </div>
+                                                        <div>
+                                                            <p className="font-semibold text-white">{prompt.title}</p>
+                                                            <p className="text-sm text-muted-foreground">{prompt.prompt}</p>
+                                                        </div>
                                                     </div>
-                                                    <div>
-                                                        <p className="font-semibold text-white">{prompt.title}</p>
-                                                        <p className="text-sm text-muted-foreground">{prompt.prompt}</p>
-                                                    </div>
-                                                </div>
-                                            </Card>
-                                        ))}
+                                                </Card>
+                                            )
+                                        })}
                                     </div>
                                 </div>
                             ) : (
@@ -388,3 +419,5 @@ export default function Home() {
         </AppLayout>
     );
 }
+
+    
