@@ -13,6 +13,7 @@ import { useToast } from "@/hooks/use-toast";
 import { Loader2 } from "lucide-react";
 import AuthLayout from "@/components/auth-layout";
 import { CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from "@/components/ui/card";
+import nProgress from "nprogress";
 
 export default function LoginPage() {
   const [email, setEmail] = useState("");
@@ -24,19 +25,57 @@ export default function LoginPage() {
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
+    nProgress.start();
+
     try {
-      await signInWithEmailAndPassword(auth, email, password);
+      const userCredential = await signInWithEmailAndPassword(auth, email, password);
+
+      if (!userCredential.user.emailVerified) {
+        toast({
+          variant: "destructive",
+          title: "Verifikasi Email Diperlukan",
+          description: "Silakan verifikasi email Anda terlebih dahulu sebelum masuk.",
+        });
+        setLoading(false);
+        nProgress.done();
+        return;
+      }
+      
       toast({
         title: "Masuk Berhasil",
         description: "Selamat datang kembali!",
       });
       router.push("/");
     } catch (error: any) {
-      toast({
-        variant: "destructive",
-        title: "Gagal Masuk",
-        description: error.message,
-      });
+      let description = "Terjadi kesalahan yang tidak diketahui.";
+      if (error.code === 'auth/user-not-found' || error.code === 'auth/invalid-credential') {
+        description = "Akun belum terdaftar. Silakan daftar terlebih dahulu.";
+        toast({
+            variant: "destructive",
+            title: "Gagal Masuk",
+            description,
+            action: (
+                <Button onClick={() => router.push('/register')} size="sm">
+                    Daftar
+                </Button>
+            )
+        });
+      } else if (error.code === 'auth/wrong-password') {
+        description = "Email atau kata sandi Anda salah.";
+        toast({
+            variant: "destructive",
+            title: "Gagal Masuk",
+            description,
+        });
+      } else {
+        description = error.message;
+        toast({
+            variant: "destructive",
+            title: "Gagal Masuk",
+            description,
+        });
+      }
+      nProgress.done();
     } finally {
       setLoading(false);
     }

@@ -1,3 +1,4 @@
+
 "use client";
 
 import React, { createContext, useContext, useEffect, useState } from "react";
@@ -5,6 +6,7 @@ import { onAuthStateChanged, User } from "firebase/auth";
 import { auth } from "@/lib/firebase/config";
 import { usePathname, useRouter } from "next/navigation";
 import { Skeleton } from "@/components/ui/skeleton";
+import nProgress from "nprogress";
 
 interface AuthContextType {
   user: User | null;
@@ -24,8 +26,17 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (user) => {
-      setUser(user);
-      setLoading(false);
+        if (user) {
+            // Force reload user data to get the latest emailVerified state
+            user.reload().then(() => {
+                const reloadedUser = auth.currentUser;
+                setUser(reloadedUser);
+                setLoading(false);
+            });
+        } else {
+            setUser(null);
+            setLoading(false);
+        }
     });
 
     return () => unsubscribe();
@@ -34,22 +45,40 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   useEffect(() => {
     if (loading) return;
 
-    const isAuthPage = ["/login", "/register", "/forgot-password"].includes(pathname);
+    const isAuthPage = ["/login", "/register", "/forgot-password", "/verify-email"].includes(pathname);
     
+    // If the user is not logged in and not on an authentication page, redirect to login
     if (!user && !isAuthPage) {
       router.push("/login");
-    } else if (user && isAuthPage) {
-      router.push("/");
+      return;
     }
+
+    // If the user is logged in
+    if (user) {
+        // If email is not verified and they are not on the verification page, redirect them.
+        if (!user.emailVerified && pathname !== '/verify-email') {
+            router.push(`/verify-email?email=${user.email}`);
+            return;
+        }
+
+        // If email is verified and they are on an auth page or verification page, redirect to home
+        if (user.emailVerified && (isAuthPage || pathname === '/verify-email')) {
+            router.push("/");
+            return;
+        }
+    }
+
+    nProgress.done();
+
   }, [user, loading, pathname, router]);
 
   if (loading) {
     return (
       <div className="flex items-center justify-center h-screen">
-        <div className="space-y-4">
-            <Skeleton className="h-12 w-12 rounded-full" />
-            <Skeleton className="h-4 w-[250px]" />
-            <Skeleton className="h-4 w-[200px]" />
+        <div className="space-y-4 text-center">
+            <Skeleton className="h-16 w-16 rounded-full mx-auto" />
+            <Skeleton className="h-5 w-[250px] mx-auto" />
+            <Skeleton className="h-4 w-[200px] mx-auto" />
         </div>
       </div>
     );

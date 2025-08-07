@@ -4,7 +4,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { createUserWithEmailAndPassword, updateProfile } from "firebase/auth";
+import { createUserWithEmailAndPassword, updateProfile, sendEmailVerification } from "firebase/auth";
 import { auth } from "@/lib/firebase/config";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -39,16 +39,29 @@ export default function RegisterPage() {
         displayName: name,
       });
 
+      await sendEmailVerification(userCredential.user);
+
       toast({
         title: "Pendaftaran Berhasil",
-        description: "Akun Anda telah dibuat.",
+        description: "Silakan periksa email Anda untuk verifikasi.",
       });
-      router.push("/");
+      router.push(`/verify-email?email=${email}`);
+      
     } catch (error: any) {
+        let description = "Terjadi kesalahan yang tidak diketahui.";
+        if (error.code === 'auth/email-already-in-use') {
+            description = "Email ini sudah terdaftar. Silakan gunakan email lain atau masuk.";
+        } else if (error.code === 'auth/weak-password') {
+            description = "Kata sandi terlalu lemah. Harap gunakan minimal 6 karakter.";
+        } else if (error.code === 'auth/invalid-email') {
+            description = "Format email tidak valid.";
+        } else {
+            description = error.message;
+        }
       toast({
         variant: "destructive",
         title: "Pendaftaran Gagal",
-        description: error.message,
+        description,
       });
     } finally {
       setLoading(false);

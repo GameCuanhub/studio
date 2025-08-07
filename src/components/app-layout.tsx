@@ -6,7 +6,7 @@ import { signOut, deleteUser } from "firebase/auth";
 import { auth } from "@/lib/firebase/config";
 import { useAuth } from "@/context/auth-provider";
 import { useRouter, usePathname } from "next/navigation";
-import { Home, History, LogOut, PanelLeft, UserX, Trash2 } from "lucide-react";
+import { Home, History, LogOut, PanelLeft, User, UserX, Trash2 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -67,6 +67,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   const navItems = [
     { href: "/", label: "Ajukan Pertanyaan", icon: Home },
     { href: "/history", label: "Riwayat", icon: History },
+    { href: "/profile", label: "Profil", icon: User },
   ];
   
   const getAvatarFallback = () => {
@@ -137,10 +138,15 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
                 <DropdownMenuContent align="end">
                 <DropdownMenuLabel>{user?.displayName || user?.email}</DropdownMenuLabel>
                 <DropdownMenuSeparator />
+                <DropdownMenuItem onClick={() => router.push('/profile')}>
+                    <User className="mr-2 h-4 w-4" />
+                    <span>Profil Saya</span>
+                </DropdownMenuItem>
                 <DropdownMenuItem onClick={handleLogout}>
                     <LogOut className="mr-2 h-4 w-4" />
                     <span>Keluar</span>
                 </DropdownMenuItem>
+                 <DropdownMenuSeparator />
                  <AlertDialogTrigger asChild>
                     <DropdownMenuItem className="text-destructive focus:text-destructive">
                       <UserX className="mr-2 h-4 w-4" />
@@ -161,13 +167,14 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
               </Button>
             </SheetTrigger>
             <SheetContent side="left" className="sm:max-w-xs bg-background border-secondary">
-              <SheetTitle>Menu</SheetTitle>
+              <SheetTitle className="sr-only">Menu</SheetTitle>
               <nav className="grid gap-6 text-lg font-medium mt-8">
                 <Link
                   href="/"
-                  className="group flex h-10 shrink-0 items-center justify-center gap-2 rounded-full text-lg font-semibold text-primary-foreground md:text-base"
+                  className="group flex h-10 shrink-0 items-center justify-center gap-2 rounded-full text-lg font-semibold text-primary-foreground md:text-base mb-4"
                 >
                   <Logo />
+                   <span className="font-bold text-foreground">PintarAI</span>
                 </Link>
                 {navItems.map((item) => (
                    <Link
