@@ -1,16 +1,13 @@
-
 rules_version = '2';
 
 service cloud.firestore {
   match /databases/{database}/documents {
-    // Only allow users to read, write, and delete their own chat sessions
     match /chats/{chatId} {
-      allow read, write, delete: if request.auth != null && request.auth.uid == resource.data.userId;
-    }
-
-    // Explicitly deny access to other collections if any exist in the future
-    match /{document=**} {
-      allow read, write: if false;
+      // Allow create if the user is authenticated and is the owner of the new document.
+      allow create: if request.auth != null && request.auth.uid == request.resource.data.userId;
+      
+      // Allow read, update, and delete if the user is authenticated and is the owner of the existing document.
+      allow read, update, delete: if request.auth != null && request.auth.uid == resource.data.userId;
     }
   }
 }
