@@ -55,8 +55,8 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
     // If the user is logged in
     if (user) {
-        // If email is not verified and they are not on the verification page, redirect them.
-        if (!user.emailVerified && pathname !== '/verify-email') {
+        // If email is not verified and they are not on the verification or login page, redirect them.
+        if (!user.emailVerified && pathname !== '/verify-email' && pathname !== '/login') {
             router.push(`/verify-email?email=${user.email}`);
             return;
         }
