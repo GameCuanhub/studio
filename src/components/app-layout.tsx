@@ -6,7 +6,7 @@ import { signOut, deleteUser } from "firebase/auth";
 import { auth } from "@/lib/firebase/config";
 import { useAuth } from "@/context/auth-provider";
 import { useRouter, usePathname } from "next/navigation";
-import { Home, History, LogOut, PanelLeft, User, UserX, Trash2 } from "lucide-react";
+import { Home, History, LogOut, PanelLeft, User, UserX, Trash2, PlusCircle, BookOpen } from "lucide-react";
 import { clearUserHistory } from "@/services/historyService";
 
 import { Button } from "@/components/ui/button";
@@ -40,6 +40,22 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
     router.push("/login");
   };
 
+  const startNewSession = () => {
+    // Clear the session from local storage which will trigger the effect in page.tsx
+    localStorage.removeItem('pintarai-chat-session');
+    // If we are already on the home page, we might need to force a re-render or state update
+    // For now, this will work if we navigate away and back, or if page.tsx handles it.
+    if (pathname === '/') {
+        window.location.reload(); // simple way to force reload and clear state
+    } else {
+        router.push('/');
+    }
+    toast({
+        title: "Sesi Baru Dimulai",
+        description: "Anda dapat memulai percakapan baru.",
+    });
+  };
+
   const handleDeleteAccount = async () => {
     if (!user) return;
     try {
@@ -71,7 +87,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
 
   const navItems = [
     { href: "/", label: "Ajukan Pertanyaan", icon: Home },
-    { href: "/history", label: "Riwayat", icon: History },
+    { href: "/history", label: "Riwayat", icon: BookOpen },
     { href: "/profile", label: "Profil", icon: User },
   ];
   
@@ -117,6 +133,18 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
                 <TooltipContent side="right">{item.label}</TooltipContent>
               </Tooltip>
             ))}
+             <Tooltip delayDuration={0}>
+                <TooltipTrigger asChild>
+                  <button
+                    onClick={startNewSession}
+                    className="flex h-9 w-9 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground md:h-9 md:w-9"
+                  >
+                    <PlusCircle className="h-5 w-5" />
+                    <span className="sr-only">Sesi Baru</span>
+                  </button>
+                </TooltipTrigger>
+                <TooltipContent side="right">Sesi Baru</TooltipContent>
+            </Tooltip>
           </TooltipProvider>
         </nav>
         <nav className="mt-auto flex flex-col items-center gap-4 px-2 sm:py-5">
@@ -195,6 +223,13 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
                     {item.label}
                   </Link>
                 ))}
+                <button
+                    onClick={startNewSession}
+                    className="flex items-center gap-4 px-2.5 text-muted-foreground hover:text-foreground"
+                  >
+                    <PlusCircle className="h-5 w-5" />
+                    Sesi Baru
+                  </button>
               </nav>
             </SheetContent>
           </Sheet>

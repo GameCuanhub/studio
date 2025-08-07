@@ -265,7 +265,7 @@ export default function Home() {
 
 
     if (!isMounted) {
-        return <AppLayout><div className="flex flex-col h-[calc(100vh-theme(spacing.24))]"></div></AppLayout>;
+        return <AppLayout><div className="flex flex-col h-[calc(100vh-theme(spacing.16))]"></div></AppLayout>;
     }
     
     const displayMessages: DisplayMessage[] = (currentSession?.messages || []).flatMap(item => {
@@ -329,17 +329,7 @@ export default function Home() {
 
     return (
         <AppLayout>
-            <div className="flex flex-col h-[calc(100vh-theme(spacing.24))]">
-                 <div className="flex items-center justify-end mb-4 h-10">
-                    {currentSession && (
-                         <div className="transition-opacity duration-300 animate-fade-in">
-                            <Button onClick={startNewSession}>
-                                <PlusCircle className="mr-2 h-4 w-4" />
-                                Mulai Sesi Baru
-                            </Button>
-                        </div>
-                    )}
-                </div>
+            <div className="flex flex-col h-[calc(100vh-theme(spacing.16))]">
                 <div className="flex-1 overflow-y-auto pr-4">
                     <ScrollArea className="h-full">
                         <div className="space-y-6">
@@ -379,8 +369,11 @@ export default function Home() {
                                             </div>
                                         </div>
                                     </div>
-                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 w-full max-w-2xl">
-                                        {renderPromptSuggestions()}
+                                    <div className="w-full max-w-2xl">
+                                        <h3 className="text-sm font-medium text-muted-foreground mb-3 text-center">Ide Pertanyaan dari AI ✨</h3>
+                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                            {renderPromptSuggestions()}
+                                        </div>
                                     </div>
                                 </div>
                             ) : (
@@ -460,3 +453,4 @@ export default function Home() {
     
 
     
+

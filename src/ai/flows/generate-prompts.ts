@@ -25,7 +25,7 @@ const GeneratePromptsOutputSchema = z.object({
     z.object({
       icon: z.enum(iconEnum).describe('An icon name from the provided list.'),
       title: z.string().describe('A short, catchy title for the prompt (in Indonesian).'),
-      prompt: z.string().describe('The full example prompt text (in Indonesian).'),
+      prompt: z.string().describe('The full example prompt text (in Indonesian, max 10 words).'),
     })
   ).length(2).describe('An array of exactly two generated prompts.'),
 });
@@ -47,9 +47,10 @@ const prompt = ai.definePrompt({
   Instructions:
   1.  Generate exactly TWO distinct example questions.
   2.  The questions must be appropriate for the student's specific class level and subject matter based on the current Indonesian curriculum. Avoid generic questions.
-  3.  For each question, provide a short, catchy title in Bahasa Indonesia.
-  4.  For each question, select the most appropriate icon from this list: ${iconEnum.join(', ')}.
-  5.  The final output must be in the specified JSON format.
+  3.  **Crucially, the question prompt text must be short and to the point (max 10 words).**
+  4.  For each question, provide a short, catchy title in Bahasa Indonesia.
+  5.  For each question, select the most appropriate icon from this list: ${iconEnum.join(', ')}.
+  6.  The final output must be in the specified JSON format.
   `,
 });
 
