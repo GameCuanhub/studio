@@ -1,7 +1,7 @@
 
 "use client";
 
-import React, { useState, useEffect, Dispatch, SetStateAction } from "react";
+import React, { useState, useEffect, Dispatch, SetStateAction, RefObject } from "react";
 import { useForm, SubmitHandler } from "react-hook-form";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -11,16 +11,10 @@ import { useAuth } from "@/context/auth-provider";
 
 import { Button } from "@/components/ui/button";
 import { Form, FormControl, FormField, FormItem, FormMessage } from "@/components/ui/form";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { Loader2, Send, Paperclip, XCircle } from "lucide-react";
-import { CLASS_LEVELS, SUBJECTS_BY_LEVEL } from "@/lib/constants";
 import { useToast } from "@/hooks/use-toast";
 import Image from "next/image";
-import { Card } from "./ui/card";
-import { Popover, PopoverContent, PopoverTrigger } from "./ui/popover";
-import { Label } from "./ui/label";
-import { useLocalStorage } from "@/hooks/use-local-storage";
 import { doc, collection } from "firebase/firestore";
 import { db } from "@/lib/firebase/config";
 
@@ -44,18 +38,28 @@ const readFileAsDataURL = (file: File): Promise<string> => {
 interface QuestionFormProps {
     currentSession: ChatSession | null;
     setCurrentSession: Dispatch<SetStateAction<ChatSession | null>>;
+    classLevel: string;
+    subject: string;
+    question: string;
+    setQuestion: Dispatch<SetStateAction<string>>;
+    formRef: RefObject<HTMLFormElement>;
 }
 
-export default function QuestionForm({ currentSession, setCurrentSession }: QuestionFormProps) {
+export default function QuestionForm({ 
+    currentSession, 
+    setCurrentSession,
+    classLevel,
+    subject,
+    question,
+    setQuestion,
+    formRef
+}: QuestionFormProps) {
   const [loading, setLoading] = useState(false);
   const [fileName, setFileName] = useState("");
   const [filePreview, setFilePreview] = useState<string | null>(null);
   const { toast } = useToast();
   const { user } = useAuth();
   
-  const [classLevel, setClassLevel] = useLocalStorage<string>('pintarai-classLevel', '');
-  const [subject, setSubject] = useLocalStorage<string>('pintarai-subject', '');
-
   const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
     defaultValues: {
@@ -64,23 +68,10 @@ export default function QuestionForm({ currentSession, setCurrentSession }: Ques
     },
   });
 
-  useEffect(() => {
-    if (!CLASS_LEVELS.includes(classLevel)) {
-        setClassLevel('');
-    }
-    const availableSubjects = classLevel ? SUBJECTS_BY_LEVEL[classLevel.split(" ")[0] as keyof typeof SUBJECTS_BY_LEVEL] || [] : [];
-    if (!availableSubjects.includes(subject)) {
-        setSubject('');
-    }
-  }, [classLevel, subject, setClassLevel, setSubject]);
+   useEffect(() => {
+    form.setValue('questionText', question);
+  }, [question, form]);
 
-  // Sync form context with current session if it exists
-  useEffect(() => {
-    if (currentSession) {
-      if (classLevel !== currentSession.classLevel) setClassLevel(currentSession.classLevel);
-      if (subject !== currentSession.subject) setSubject(currentSession.subject);
-    }
-  }, [currentSession, classLevel, subject, setClassLevel, setSubject]);
 
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -171,6 +162,7 @@ export default function QuestionForm({ currentSession, setCurrentSession }: Ques
     }
 
     form.reset();
+    setQuestion("");
     resetFileInput();
 
     try {
@@ -215,10 +207,10 @@ export default function QuestionForm({ currentSession, setCurrentSession }: Ques
   };
 
   return (
-    <Card className="rounded-2xl shadow-lg">
+    <div className="bg-background/80 backdrop-blur-md rounded-2xl border border-border shadow-2xl shadow-black/20">
         <div className="p-2">
             <Form {...form}>
-                <form onSubmit={form.handleSubmit(onSubmit)} className="relative">
+                <form onSubmit={form.handleSubmit(onSubmit)} className="relative" ref={formRef}>
                     {fileName && (
                         <div className="absolute bottom-[calc(100%+0.5rem)] left-0 bg-secondary p-2 rounded-lg text-sm flex items-center gap-2">
                              {filePreview && (
@@ -239,12 +231,16 @@ export default function QuestionForm({ currentSession, setCurrentSession }: Ques
                         <FormItem>
                         <FormControl>
                             <Textarea
-                                placeholder="Ketik pertanyaan Anda di sini..."
-                                className="min-h-0 pr-24 pl-12 rounded-xl text-base"
+                                placeholder="Ketik pertanyaan Anda di sini, atau pilih salah satu contoh di atas..."
+                                className="min-h-0 pr-24 pl-12 rounded-xl text-base bg-secondary border-secondary focus-visible:ring-primary"
                                 {...field}
                                 rows={1}
                                 onKeyDown={handleKeyDown}
                                 disabled={loading}
+                                onChange={(e) => {
+                                    field.onChange(e);
+                                    setQuestion(e.target.value);
+                                }}
                                 />
                         </FormControl>
                         <FormMessage />
@@ -258,59 +254,16 @@ export default function QuestionForm({ currentSession, setCurrentSession }: Ques
                         </label>
                     </div>
                      <div className="absolute top-1/2 -translate-y-1/2 right-3 flex items-center gap-2">
-                        <Button type="submit" disabled={loading} size="icon" className="rounded-full w-8 h-8">
+                        <Button type="submit" disabled={loading || !form.formState.isValid} size="icon" className="rounded-full w-8 h-8">
                         {loading ? <Loader2 className="animate-spin" /> : <Send />}
                         </Button>
                     </div>
                 </form>
             </Form>
         </div>
-        <div className="flex items-center justify-between text-xs text-muted-foreground px-4 py-2 border-t">
+        <div className="flex items-center justify-center text-xs text-muted-foreground px-4 py-2 border-t border-secondary">
             <p>PintarAI dapat membuat kesalahan. Periksa info penting.</p>
-             <Popover>
-                <PopoverTrigger asChild>
-                    <Button variant="ghost" size="sm">{classLevel && subject ? `${classLevel} / ${subject}` : 'Pilih Konteks'}</Button>
-                </PopoverTrigger>
-                <PopoverContent className="w-80">
-                    <div className="grid gap-4">
-                        <div className="space-y-2">
-                            <h4 className="font-medium leading-none">Pengaturan Konteks</h4>
-                            <p className="text-sm text-muted-foreground">
-                                Bantu AI memberikan jawaban yang lebih relevan.
-                            </p>
-                        </div>
-                        <div className="grid gap-2">
-                            <div className="grid grid-cols-3 items-center gap-4">
-                                <Label htmlFor="classLevel">Jenjang</Label>
-                                <Select onValueChange={setClassLevel} value={classLevel} disabled={!!currentSession}>
-                                    <SelectTrigger className="col-span-2 h-8">
-                                        <SelectValue placeholder="Pilih jenjang" />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                    {CLASS_LEVELS.map((level) => (
-                                        <SelectItem key={level} value={level}>{level}</SelectItem>
-                                    ))}
-                                    </SelectContent>
-                                </Select>
-                            </div>
-                            <div className="grid grid-cols-3 items-center gap-4">
-                                <Label htmlFor="subject">Pelajaran</Label>
-                                <Select onValueChange={setSubject} value={subject} disabled={!classLevel || !!currentSession}>
-                                    <SelectTrigger className="col-span-2 h-8">
-                                        <SelectValue placeholder="Pilih pelajaran" />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                    {(classLevel ? SUBJECTS_BY_LEVEL[classLevel.split(" ")[0] as keyof typeof SUBJECTS_BY_LEVEL] || [] : []).map((subject) => (
-                                        <SelectItem key={subject} value={subject}>{subject}</SelectItem>
-                                    ))}
-                                    </SelectContent>
-                                </Select>
-                            </div>
-                        </div>
-                    </div>
-                </PopoverContent>
-            </Popover>
         </div>
-    </Card>
+    </div>
   );
 }
