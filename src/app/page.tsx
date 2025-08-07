@@ -160,7 +160,7 @@ export default function Home() {
     };
     
     const startNewSession = () => {
-        if (currentSession && currentSession.messages.length > 0) {
+        if (currentSession && currentSession.messages?.length > 0) {
             const existingIndex = history.findIndex(s => s.id === currentSession.id);
             if (existingIndex > -1) {
                 const updatedHistory = [...history];
