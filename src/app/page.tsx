@@ -7,7 +7,7 @@ import QuestionForm from "@/components/question-form";
 import type { ChatSession, QAPair } from "@/types";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { useAuth } from "@/context/auth-provider";
-import { BrainCircuit, Sparkles, Copy, Download, PlusCircle, Book, FlaskConical, Landmark, History, LucideIcon } from "lucide-react";
+import { BrainCircuit, Sparkles, Copy, Download, PlusCircle, Book, FlaskConical, Landmark, History, LucideIcon, Info } from "lucide-react";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import Image from 'next/image';
@@ -23,6 +23,7 @@ import { CLASS_LEVELS, SUBJECTS_BY_LEVEL, ExamplePrompt, ICONS } from "@/lib/con
 import { Label } from "@/components/ui/label";
 import { generatePrompts } from "@/ai/flows/generate-prompts";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 
 
 type DisplayMessage = {
@@ -368,6 +369,13 @@ export default function Home() {
                                                 </Select>
                                             </div>
                                         </div>
+                                         <Alert>
+                                            <Info className="h-4 w-4" />
+                                            <AlertTitle>Penting!</AlertTitle>
+                                            <AlertDescription>
+                                                Selalu pastikan jenjang dan mata pelajaran sesuai dengan pertanyaan Anda untuk mendapatkan jawaban yang paling akurat.
+                                            </AlertDescription>
+                                        </Alert>
                                     </div>
                                     <div className="w-full max-w-2xl">
                                         <h3 className="text-sm font-medium text-muted-foreground mb-3 text-center">Ide Pertanyaan dari AI ✨</h3>
@@ -400,7 +408,7 @@ export default function Home() {
                                                           {message.content}
                                                         </div>
                                                     )}
-                                                     {message.type === 'user' && message.uploadedFileUri && message.uploadedFileUri.startsWith('data:image') && (
+                                                     {message.type === 'user' && message.item.uploadedFileUri && message.item.uploadedFileUri.startsWith('data:image') && (
                                                         <div className="mt-3 relative w-full max-w-xs h-48 border rounded-md overflow-hidden bg-background">
                                                             <Image src={message.item.uploadedFileUri} alt="Lampiran file" layout="fill" objectFit="contain" />
                                                         </div>
@@ -454,3 +462,6 @@ export default function Home() {
 
     
 
+
+
+    

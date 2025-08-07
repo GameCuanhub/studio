@@ -3,7 +3,7 @@
 
 import { useEffect, useState, useCallback } from "react";
 import AppLayout from "@/components/app-layout";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import type { ChatSession } from "@/types";
 import { format, formatDistanceToNow } from "date-fns";
@@ -52,16 +52,21 @@ export default function HistoryPage() {
   };
   
   const renderSkeleton = () => (
-    <div className="space-y-4">
+    <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
       {Array.from({ length: 3 }).map((_, i) => (
         <Card key={i}>
-            <CardContent className="p-4">
-                <div className="space-y-3">
-                    <Skeleton className="h-5 w-3/4" />
+            <CardHeader>
+                <Skeleton className="h-5 w-3/4" />
+            </CardHeader>
+            <CardContent>
+                <div className="space-y-2">
                     <Skeleton className="h-4 w-1/2" />
                     <Skeleton className="h-4 w-1/3" />
                 </div>
             </CardContent>
+             <CardFooter>
+                 <Skeleton className="h-4 w-full" />
+             </CardFooter>
         </Card>
       ))}
     </div>
@@ -122,11 +127,11 @@ export default function HistoryPage() {
                                 {session.title}
                            </CardTitle>
                         </CardHeader>
-                        <CardContent className="flex-grow">
+                        <CardContent className="flex-grow space-y-1">
                            <p className="text-sm text-muted-foreground">{session.classLevel}</p>
                            <p className="text-sm text-muted-foreground font-medium">{session.subject}</p>
                         </CardContent>
-                        <CardContent className="pt-3 border-t border-secondary/50 flex items-center justify-between text-xs text-muted-foreground">
+                        <CardFooter className="pt-3 border-t border-secondary/50 flex items-center justify-between text-xs text-muted-foreground">
                             <div className="flex items-center gap-1.5">
                                 <MessageSquare className="h-3 w-3" />
                                 <span>{session.messages.length} pesan</span>
@@ -134,7 +139,7 @@ export default function HistoryPage() {
                            <span>
                             {session.startTime ? formatDistanceToNow(new Date(session.startTime), { addSuffix: true, locale: id }) : 'Waktu tidak valid'}
                            </span>
-                        </CardContent>
+                        </CardFooter>
                     </Card>
                 ))}
                 </div>
@@ -153,3 +158,5 @@ export default function HistoryPage() {
     </AppLayout>
   );
 }
+
+    
