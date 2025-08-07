@@ -174,7 +174,9 @@ export default function HistoryPage() {
     );
   }
 
-  const sortedHistory = [...history].sort((a, b) => new Date(b.startTime).getTime() - new Date(a.startTime).getTime());
+  const sortedHistory = [...history]
+    .filter(session => session.startTime && !isNaN(new Date(session.startTime).getTime()))
+    .sort((a, b) => new Date(b.startTime).getTime() - new Date(a.startTime).getTime());
 
   return (
     <AppLayout>
@@ -296,5 +298,3 @@ export default function HistoryPage() {
     </AppLayout>
   );
 }
-
-    
