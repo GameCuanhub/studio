@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import AppLayout from "@/components/app-layout";
 import QuestionForm from "@/components/question-form";
 import type { ChatSession, QAPair } from "@/types";
@@ -19,8 +19,10 @@ import { id } from "date-fns/locale";
 import { useLocalStorage } from "@/hooks/use-local-storage";
 import { saveChatSession, getChatSession } from "@/services/historyService";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { CLASS_LEVELS, SUBJECTS_BY_LEVEL, EXAMPLE_PROMPTS, ExamplePrompt } from "@/lib/constants";
+import { CLASS_LEVELS, SUBJECTS_BY_LEVEL, ExamplePrompt, ICONS } from "@/lib/constants";
 import { Label } from "@/components/ui/label";
+import { generatePrompts } from "@/ai/flows/generate-prompts";
+import { Skeleton } from "@/components/ui/skeleton";
 
 
 type DisplayMessage = {
@@ -41,6 +43,7 @@ export default function Home() {
     const [question, setQuestion] = useState("");
     const formRef = useRef<HTMLFormElement>(null);
     const [examplePrompts, setExamplePrompts] = useState<ExamplePrompt[]>([]);
+    const [promptsLoading, setPromptsLoading] = useState(false);
 
 
     // This effect runs when the component mounts or the user changes.
@@ -66,39 +69,43 @@ export default function Home() {
         }
     }, [currentSession, user]);
 
+    const fetchPrompts = useCallback(async (level: string, subj: string) => {
+        if (!level || !subj) return;
+        setPromptsLoading(true);
+        try {
+            const { prompts } = await generatePrompts({ classLevel: level, subject: subj });
+            setExamplePrompts(prompts);
+        } catch (error) {
+            console.error("Failed to generate prompts:", error);
+            // Fallback to generic prompts in case of an error
+            setExamplePrompts([
+                { icon: "Book", title: "Buatkan soal", prompt: "Buatkan 5 soal pilihan ganda tentang topik ini." },
+                { icon: "FlaskConical", title: "Jelaskan konsep", prompt: "Jelaskan konsep ini dengan bahasa yang sederhana." }
+            ]);
+            toast({
+                variant: 'destructive',
+                title: 'Gagal Membuat Saran',
+                description: 'Tidak dapat membuat saran pertanyaan dari AI. Menampilkan contoh umum.'
+            })
+        } finally {
+            setPromptsLoading(false);
+        }
+    }, [toast]);
+
     useEffect(() => {
-        const getPrompts = () => {
-            const levelKey = classLevel.split(" ")[0] as keyof typeof EXAMPLE_PROMPTS;
-            let prompts: ExamplePrompt[] = [];
-            
-            const levelPrompts = EXAMPLE_PROMPTS[levelKey];
+        const hasSelection = classLevel && subject;
+        if(hasSelection) {
+            const debounceTimer = setTimeout(() => {
+                fetchPrompts(classLevel, subject);
+            }, 500); // Debounce to avoid rapid API calls
 
-            if (levelPrompts) {
-                 // Check if it's an array (like "Umum") or an object of subjects
-                if (Array.isArray(levelPrompts)) {
-                    prompts = levelPrompts;
-                } else {
-                    // It's an object of subjects, try to find the specific subject
-                    if (subject && levelPrompts[subject]) {
-                        prompts = levelPrompts[subject];
-                    } else if (levelPrompts['Umum']) {
-                        // Fallback to "Umum" for the specific level if subject not found
-                        prompts = levelPrompts['Umum'];
-                    }
-                }
-            }
-            
-            // If still no prompts, use the most generic ones
-            if (prompts.length === 0) {
-                prompts = EXAMPLE_PROMPTS['Umum'] as ExamplePrompt[];
-            }
+            return () => clearTimeout(debounceTimer);
+        } else {
+            // Clear prompts if selection is incomplete
+            setExamplePrompts([]);
+        }
 
-            // Shuffle and pick 4
-            return prompts.sort(() => 0.5 - Math.random()).slice(0, 4);
-        };
-
-        setExamplePrompts(getPrompts());
-    }, [classLevel, subject]);
+    }, [classLevel, subject, fetchPrompts]);
 
 
     const getAvatarFallback = () => {
@@ -272,13 +279,52 @@ export default function Home() {
     });
 
     const getIcon = (iconName: string): LucideIcon => {
-        switch (iconName) {
-            case 'Book': return Book;
-            case 'FlaskConical': return FlaskConical;
-            case 'Landmark': return Landmark;
-            case 'History': return History;
-            default: return Sparkles;
+        return ICONS[iconName] || Sparkles;
+    }
+
+    const renderPromptSuggestions = () => {
+        if (promptsLoading) {
+            return Array.from({ length: 2 }).map((_, index) => (
+                <Card key={index} className="bg-secondary p-4 rounded-lg">
+                    <div className="flex items-start gap-4">
+                        <Skeleton className="w-10 h-10 rounded-full" />
+                        <div className="space-y-2 flex-1">
+                            <Skeleton className="h-4 w-1/3" />
+                            <Skeleton className="h-4 w-3/4" />
+                        </div>
+                    </div>
+                </Card>
+            ));
         }
+
+        if (!classLevel || !subject || examplePrompts.length === 0) {
+            return (
+                <div className="col-span-2 text-center text-muted-foreground py-8">
+                    <p>Pilih jenjang dan mata pelajaran untuk mendapatkan ide pertanyaan dari AI.</p>
+                </div>
+            )
+        }
+
+        return examplePrompts.map((prompt, index) => {
+            const Icon = getIcon(prompt.icon);
+            return (
+                <Card
+                    key={index}
+                    className="bg-secondary p-4 rounded-lg hover:bg-border transition-colors cursor-pointer group"
+                    onClick={() => handleExampleClick(prompt.prompt)}
+                >
+                    <div className="flex items-start gap-4">
+                        <div className="bg-background p-2 rounded-full">
+                            <Icon className="w-5 h-5 text-primary" />
+                        </div>
+                        <div>
+                            <p className="font-semibold text-white">{prompt.title}</p>
+                            <p className="text-sm text-muted-foreground">{prompt.prompt}</p>
+                        </div>
+                    </div>
+                </Card>
+            );
+        });
     }
 
     return (
@@ -333,27 +379,8 @@ export default function Home() {
                                             </div>
                                         </div>
                                     </div>
-                                    <div className="grid grid-cols-2 gap-4 w-full max-w-2xl">
-                                        {examplePrompts.map((prompt, index) => {
-                                            const Icon = getIcon(prompt.icon);
-                                            return (
-                                                <Card 
-                                                    key={index}
-                                                    className="bg-secondary p-4 rounded-lg hover:bg-border transition-colors cursor-pointer group"
-                                                    onClick={() => handleExampleClick(prompt.prompt)}
-                                                >
-                                                    <div className="flex items-start gap-4">
-                                                        <div className="bg-background p-2 rounded-full">
-                                                            <Icon className="w-5 h-5 text-primary" />
-                                                        </div>
-                                                        <div>
-                                                            <p className="font-semibold text-white">{prompt.title}</p>
-                                                            <p className="text-sm text-muted-foreground">{prompt.prompt}</p>
-                                                        </div>
-                                                    </div>
-                                                </Card>
-                                            )
-                                        })}
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 w-full max-w-2xl">
+                                        {renderPromptSuggestions()}
                                     </div>
                                 </div>
                             ) : (
@@ -380,7 +407,7 @@ export default function Home() {
                                                           {message.content}
                                                         </div>
                                                     )}
-                                                     {message.type === 'user' && message.item.uploadedFileUri && message.item.uploadedFileUri.startsWith('data:image') && (
+                                                     {message.type === 'user' && message.uploadedFileUri && message.uploadedFileUri.startsWith('data:image') && (
                                                         <div className="mt-3 relative w-full max-w-xs h-48 border rounded-md overflow-hidden bg-background">
                                                             <Image src={message.item.uploadedFileUri} alt="Lampiran file" layout="fill" objectFit="contain" />
                                                         </div>
