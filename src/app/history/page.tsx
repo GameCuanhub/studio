@@ -123,7 +123,7 @@ export default function HistoryPage() {
                         onClick={() => handleLoadSession(session.id)}
                     >
                         <CardHeader className="pb-3">
-                           <CardTitle className="text-base leading-snug truncate" title={session.title}>
+                           <CardTitle className="text-base leading-snug" title={session.title}>
                                 {session.title}
                            </CardTitle>
                         </CardHeader>
