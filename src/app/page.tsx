@@ -15,6 +15,7 @@ import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import jsPDF from "jspdf";
 import { format } from "date-fns";
+import { id } from "date-fns/locale";
 
 type Message = {
     type: 'user' | 'ai' | 'loading';
@@ -69,7 +70,7 @@ ${item.answer}`;
         doc.setFont("helvetica", "normal");
         doc.setFontSize(10);
         doc.text(`ID Sesi: ${item.id}`, margin, y);
-        doc.text(`Tanggal: ${format(new Date(item.timestamp), "dd MMMM yyyy, HH:mm")}`, pageWidth - margin, y, { align: "right" });
+        doc.text(`Tanggal: ${format(new Date(item.timestamp), "dd MMMM yyyy, HH:mm", { locale: id })}`, pageWidth - margin, y, { align: "right" });
         y += 7;
         doc.text(`Jenjang: ${item.classLevel}`, margin, y);
         doc.text(`Pelajaran: ${item.subject}`, pageWidth - margin, y, { align: "right" });

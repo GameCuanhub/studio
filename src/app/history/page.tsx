@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { useLocalStorage } from "@/hooks/use-local-storage";
 import type { HistoryItem } from "@/types";
 import { format } from "date-fns";
+import { id } from "date-fns/locale";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Copy, Download, ArrowLeft, History, Trash2, ShieldAlert } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
@@ -61,7 +62,7 @@ ${item.answer}`;
     doc.setFont("helvetica", "normal");
     doc.setFontSize(10);
     doc.text(`ID Sesi: ${item.id}`, margin, y);
-    doc.text(`Tanggal: ${format(new Date(item.timestamp), "dd MMMM yyyy, HH:mm")}`, pageWidth - margin, y, { align: "right" });
+    doc.text(`Tanggal: ${format(new Date(item.timestamp), "dd MMMM yyyy, HH:mm", { locale: id })}`, pageWidth - margin, y, { align: "right" });
     y += 7;
     doc.text(`Jenjang: ${item.classLevel}`, margin, y);
     doc.text(`Pelajaran: ${item.subject}`, pageWidth - margin, y, { align: "right" });
@@ -225,7 +226,7 @@ ${item.answer}`;
                     <div className="flex flex-col items-start text-left">
                       <p className="font-semibold text-base">{item.summary}</p>
                       <p className="text-sm text-muted-foreground">
-                        {item.classLevel} &middot; {item.subject} &middot; {format(new Date(item.timestamp), "PPP p")}
+                        {item.classLevel} &middot; {item.subject} &middot; {format(new Date(item.timestamp), "PPP p", { locale: id })}
                       </p>
                     </div>
                   </AccordionTrigger>
