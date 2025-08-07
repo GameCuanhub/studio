@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useState, useEffect } from "react";
+import React, { useState, useEffect, Dispatch, SetStateAction } from "react";
 import { useForm, SubmitHandler } from "react-hook-form";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -11,21 +11,19 @@ import { useLocalStorage } from "@/hooks/use-local-storage";
 import type { HistoryItem } from "@/types";
 
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
-import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
-import { Input } from "@/components/ui/input";
+import { Form, FormControl, FormField, FormItem, FormMessage } from "@/components/ui/form";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
-import { Loader2, Sparkles, Upload, XCircle } from "lucide-react";
+import { Loader2, Send, Upload, Paperclip, XCircle, Mic } from "lucide-react";
 import { CLASS_LEVELS, SUBJECTS_BY_LEVEL } from "@/lib/constants";
 import { useToast } from "@/hooks/use-toast";
-import { Skeleton } from "./ui/skeleton";
 import Image from "next/image";
+import { Card } from "./ui/card";
+import { Popover, PopoverContent, PopoverTrigger } from "./ui/popover";
+import { Label } from "./ui/label";
 
 const formSchema = z.object({
-  classLevel: z.string().min(1, "Silakan pilih jenjang kelas."),
-  subject: z.string().min(1, "Silakan pilih mata pelajaran."),
-  questionText: z.string().min(10, "Pertanyaan harus minimal 10 karakter."),
+  questionText: z.string().min(1, "Pertanyaan tidak boleh kosong."),
   file: z.any().optional(),
 });
 
@@ -40,29 +38,44 @@ const readFileAsDataURL = (file: File): Promise<string> => {
   });
 };
 
-export default function QuestionForm() {
+type Message = {
+    type: 'user' | 'ai' | 'loading';
+    item: HistoryItem;
+}
+
+interface QuestionFormProps {
+    setMessages: Dispatch<SetStateAction<Message[]>>;
+}
+
+export default function QuestionForm({ setMessages }: QuestionFormProps) {
   const [loading, setLoading] = useState(false);
-  const [result, setResult] = useState<HistoryItem | null>(null);
   const [history, setHistory] = useLocalStorage<HistoryItem[]>("pintarai-history", []);
   const [fileName, setFileName] = useState("");
   const [filePreview, setFilePreview] = useState<string | null>(null);
   const { toast } = useToast();
+  
+  const [classLevel, setClassLevel] = useLocalStorage<string>('pintarai-classLevel', '');
+  const [subject, setSubject] = useLocalStorage<string>('pintarai-subject', '');
+
 
   const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
     defaultValues: {
-      classLevel: "",
-      subject: "",
       questionText: "",
       file: undefined,
     },
   });
 
-  const selectedClassLevel = form.watch("classLevel");
-  
   useEffect(() => {
-    form.resetField("subject");
-  }, [selectedClassLevel, form]);
+    if (!CLASS_LEVELS.includes(classLevel)) {
+        setClassLevel('');
+    }
+    const availableSubjects = classLevel ? SUBJECTS_BY_LEVEL[classLevel.split(" ")[0] as keyof typeof SUBJECTS_BY_LEVEL] || [] : [];
+    if (!availableSubjects.includes(subject)) {
+        setSubject('');
+    }
+  }, [classLevel, subject, setClassLevel, setSubject]);
+
 
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -76,9 +89,7 @@ export default function QuestionForm() {
       setFileName(file.name);
       form.setValue("file", e.target.files);
     } else {
-      setFilePreview(null);
-      setFileName("");
-      form.setValue("file", undefined);
+      resetFileInput();
     }
   }
   
@@ -91,8 +102,15 @@ export default function QuestionForm() {
   }
 
   const onSubmit: SubmitHandler<FormValues> = async (data) => {
+    if(!classLevel || !subject) {
+        toast({
+            variant: "destructive",
+            title: "Pengaturan Diperlukan",
+            description: "Silakan pilih jenjang kelas dan mata pelajaran terlebih dahulu.",
+        });
+        return;
+    }
     setLoading(true);
-    setResult(null);
 
     let uploadedFileUri: string | undefined = undefined;
     if (data.file && data.file[0]) {
@@ -108,11 +126,34 @@ export default function QuestionForm() {
         return;
       }
     }
+    
+    const userMessage: Message = {
+        type: 'user',
+        item: {
+            id: new Date().toISOString() + '-q',
+            questionText: data.questionText,
+            answer: '',
+            summary: '',
+            classLevel,
+            subject,
+            timestamp: new Date().toISOString(),
+            uploadedFileUri,
+            fileName: data.file?.[0]?.name,
+        }
+    }
+    const loadingMessage: Message = {
+        type: 'loading',
+        item: { ...userMessage.item, id: new Date().toISOString() + '-l' }
+    }
+
+    setMessages(prev => [...prev, userMessage, loadingMessage]);
+    form.reset();
+    resetFileInput();
 
     try {
       const answerResponse = await answerQuestion({
-        classLevel: data.classLevel,
-        subject: data.subject,
+        classLevel,
+        subject,
         questionText: data.questionText,
         uploadedFileUri,
       });
@@ -123,7 +164,8 @@ export default function QuestionForm() {
 
       const newHistoryItem: HistoryItem = {
         id: new Date().toISOString(),
-        ...data,
+        classLevel,
+        subject,
         questionText: data.questionText,
         answer: answerResponse.answer,
         summary: summaryResponse.summary,
@@ -132,189 +174,131 @@ export default function QuestionForm() {
         fileName: data.file?.[0]?.name,
       };
 
-      setResult(newHistoryItem);
+      const aiMessage: Message = {
+          type: 'ai',
+          item: newHistoryItem
+      };
+
+      setMessages(prev => prev.filter(p => p.type !== 'loading').concat(aiMessage));
       setHistory([newHistoryItem, ...history]);
-      form.reset();
-      resetFileInput();
+
     } catch (error: any) {
       toast({
         variant: "destructive",
         title: "Kesalahan AI",
         description: error.message || "Gagal mendapatkan jawaban dari AI.",
       });
+      setMessages(prev => prev.filter(p => p.type !== 'loading'));
     } finally {
       setLoading(false);
     }
   };
+  
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      form.handleSubmit(onSubmit)();
+    }
+  };
 
   return (
-    <div>
-      <Card className="border-0 shadow-none bg-transparent md:border md:shadow-sm md:bg-card">
-        <form onSubmit={form.handleSubmit(onSubmit)}>
-          <CardContent className="p-0 md:p-6">
+    <Card className="rounded-2xl shadow-lg">
+        <div className="p-2">
             <Form {...form}>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <FormField
-                  control={form.control}
-                  name="classLevel"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Jenjang Kelas</FormLabel>
-                      <Select onValueChange={field.onChange} value={field.value}>
-                        <FormControl>
-                          <SelectTrigger>
-                            <SelectValue placeholder="Pilih jenjang kelas" />
-                          </SelectTrigger>
-                        </FormControl>
-                        <SelectContent>
-                          {CLASS_LEVELS.map((level) => (
-                            <SelectItem key={level} value={level}>{level}</SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <FormField
-                  control={form.control}
-                  name="subject"
-                  render={({ field }) => {
-                    const availableSubjects = selectedClassLevel ? SUBJECTS_BY_LEVEL[selectedClassLevel.split(" ")[0] as keyof typeof SUBJECTS_BY_LEVEL] || [] : [];
-                    return (
-                      <FormItem>
-                        <FormLabel>Mata Pelajaran</FormLabel>
-                        <Select onValueChange={field.onChange} value={field.value} disabled={!selectedClassLevel}>
-                          <FormControl>
-                            <SelectTrigger>
-                              <SelectValue placeholder="Pilih mata pelajaran" />
-                            </SelectTrigger>
-                          </FormControl>
-                          <SelectContent>
-                            {availableSubjects.map((subject) => (
-                              <SelectItem key={subject} value={subject}>{subject}</SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                        <FormMessage />
-                      </FormItem>
-                    )
-                  }}
-                />
-              </div>
-              <FormField
-                control={form.control}
-                name="questionText"
-                render={({ field }) => (
-                  <FormItem className="mt-4">
-                    <FormLabel>Pertanyaan</FormLabel>
-                    <FormControl>
-                      <Textarea placeholder="Ketik pertanyaan Anda di sini..." className="min-h-[150px]" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <FormField
-                control={form.control}
-                name="file"
-                render={() => (
-                  <FormItem className="mt-4">
-                    <FormLabel>Opsional: Unggah File</FormLabel>
-                    <FormControl>
-                      <div className="relative">
-                         <Input 
-                            id="file-upload"
-                            type="file" 
-                            className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
-                            onChange={handleFileChange}
-                            accept="image/*,application/pdf,.doc,.docx"
-                        />
-                        <div className="flex items-center justify-center w-full px-3 py-2 text-sm text-muted-foreground border-2 border-dashed rounded-md h-12">
-                            <Upload className="mr-2 h-4 w-4" />
-                            {fileName || "Pilih file untuk diunggah (gambar, dok, dll.)"}
+                <form onSubmit={form.handleSubmit(onSubmit)} className="relative">
+                    {fileName && (
+                        <div className="absolute bottom-[calc(100%+0.5rem)] left-0 bg-secondary p-2 rounded-lg text-sm flex items-center gap-2">
+                             {filePreview && (
+                                <div className="relative w-10 h-10 border rounded-md overflow-hidden">
+                                    <Image src={filePreview} alt="Pratinjau file" layout="fill" objectFit="cover" />
+                                </div>
+                            )}
+                            <span className="text-muted-foreground">{fileName}</span>
+                            <Button variant="ghost" size="icon" className="h-6 w-6" onClick={resetFileInput}>
+                                <XCircle className="h-4 w-4 text-destructive" />
+                            </Button>
                         </div>
-                      </div>
-                    </FormControl>
-                     <FormDescription>
-                      Lampirkan gambar atau dokumen untuk memberikan konteks pada pertanyaan Anda.
-                    </FormDescription>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              {filePreview && (
-                <div className="mt-4 relative w-40 h-40 border rounded-md overflow-hidden">
-                    <Image src={filePreview} alt="Pratinjau file" layout="fill" objectFit="cover" />
-                    <Button variant="ghost" size="icon" className="absolute top-1 right-1 bg-black/50 hover:bg-black/75 h-6 w-6" onClick={resetFileInput}>
-                        <XCircle className="h-4 w-4 text-white" />
-                    </Button>
-                </div>
-              )}
-              {fileName && !filePreview && (
-                <div className="mt-4 text-sm text-muted-foreground">
-                    File terpilih: {fileName}
-                    <Button variant="ghost" size="icon" className="h-6 w-6 ml-2" onClick={resetFileInput}>
-                        <XCircle className="h-4 w-4 text-destructive" />
-                    </Button>
-                </div>
-              )}
-
-               <div className="mt-6">
-                 <Button type="submit" disabled={loading} size="lg" className="w-full md:w-auto">
-                  {loading ? (
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  ) : (
-                    <Sparkles className="mr-2 h-4 w-4" />
-                  )}
-                  Dapatkan Jawaban
-                </Button>
-               </div>
-            </Form>
-          </CardContent>
-        </form>
-      </Card>
-
-      {loading && (
-        <Card className="mt-8 bg-secondary/50">
-            <CardHeader>
-                <CardTitle>AI sedang meracik jawaban...</CardTitle>
-                <CardDescription>Mohon tunggu sebentar, kami sedang memproses pertanyaan Anda.</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-                <Skeleton className="h-4 w-full bg-muted" />
-                <Skeleton className="h-4 w-full bg-muted" />
-                <Skeleton className="h-4 w-3/4 bg-muted" />
-            </CardContent>
-        </Card>
-      )}
-
-      {result && (
-        <Card className="mt-8 animate-in fade-in-50 bg-card border shadow-sm">
-          <CardHeader>
-            <CardTitle>Jawaban yang Dihasilkan AI</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-6">
-             <div>
-                <h4 className="font-semibold mb-2">Pertanyaan Anda:</h4>
-                <p className="text-sm text-muted-foreground p-4 bg-secondary/50 rounded-lg whitespace-pre-wrap">{result.questionText}</p>
-                 {result.uploadedFileUri && result.uploadedFileUri.startsWith('image/') && (
-                    <div className="mt-4 relative w-full max-w-sm h-64 border rounded-md overflow-hidden">
-                        <Image src={result.uploadedFileUri} alt="Lampiran file" layout="fill" objectFit="contain" />
+                    )}
+                    <FormField
+                    control={form.control}
+                    name="questionText"
+                    render={({ field }) => (
+                        <FormItem>
+                        <FormControl>
+                            <Textarea
+                                placeholder="Ketik pertanyaan Anda di sini..."
+                                className="min-h-0 pr-24 pl-12 rounded-xl text-base"
+                                {...field}
+                                rows={1}
+                                onKeyDown={handleKeyDown}
+                                disabled={loading}
+                                />
+                        </FormControl>
+                        <FormMessage />
+                        </FormItem>
+                    )}
+                    />
+                    <div className="absolute top-1/2 -translate-y-1/2 left-3 flex items-center gap-2">
+                        <label htmlFor="file-upload" className="cursor-pointer">
+                            <Paperclip className="text-muted-foreground hover:text-primary"/>
+                            <input id="file-upload" type="file" className="sr-only" onChange={handleFileChange} disabled={loading} />
+                        </label>
                     </div>
-                )}
-                 {result.fileName && !result.uploadedFileUri?.startsWith('image/') && (
-                     <p className="text-sm text-muted-foreground mt-2">File terlampir: {result.fileName}</p>
-                )}
-              </div>
-              <div>
-                <h4 className="font-semibold mb-2">Jawabannya:</h4>
-                <div className="prose prose-sm max-w-none text-sm p-4 border border-border rounded-lg whitespace-pre-wrap leading-relaxed bg-secondary/50">{result.answer}</div>
-              </div>
-          </CardContent>
-        </Card>
-      )}
-    </div>
+                     <div className="absolute top-1/2 -translate-y-1/2 right-3 flex items-center gap-2">
+                        <Button type="submit" disabled={loading} size="icon" className="rounded-full w-8 h-8">
+                        {loading ? <Loader2 className="animate-spin" /> : <Send />}
+                        </Button>
+                    </div>
+                </form>
+            </Form>
+        </div>
+        <div className="flex items-center justify-between text-xs text-muted-foreground px-4 py-2 border-t">
+            <p>PintarAI dapat membuat kesalahan. Pertimbangkan untuk memeriksa informasi penting.</p>
+             <Popover>
+                <PopoverTrigger asChild>
+                    <Button variant="ghost" size="sm">{classLevel && subject ? `${classLevel} / ${subject}` : 'Pilih Konteks'}</Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-80">
+                    <div className="grid gap-4">
+                        <div className="space-y-2">
+                            <h4 className="font-medium leading-none">Pengaturan Konteks</h4>
+                            <p className="text-sm text-muted-foreground">
+                                Bantu AI memberikan jawaban yang lebih relevan.
+                            </p>
+                        </div>
+                        <div className="grid gap-2">
+                            <div className="grid grid-cols-3 items-center gap-4">
+                                <Label htmlFor="classLevel">Jenjang</Label>
+                                <Select onValueChange={setClassLevel} value={classLevel}>
+                                    <SelectTrigger className="col-span-2 h-8">
+                                        <SelectValue placeholder="Pilih jenjang" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                    {CLASS_LEVELS.map((level) => (
+                                        <SelectItem key={level} value={level}>{level}</SelectItem>
+                                    ))}
+                                    </SelectContent>
+                                </Select>
+                            </div>
+                            <div className="grid grid-cols-3 items-center gap-4">
+                                <Label htmlFor="subject">Pelajaran</Label>
+                                <Select onValueChange={setSubject} value={subject} disabled={!classLevel}>
+                                    <SelectTrigger className="col-span-2 h-8">
+                                        <SelectValue placeholder="Pilih pelajaran" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                    {(classLevel ? SUBJECTS_BY_LEVEL[classLevel.split(" ")[0] as keyof typeof SUBJECTS_BY_LEVEL] || [] : []).map((subject) => (
+                                        <SelectItem key={subject} value={subject}>{subject}</SelectItem>
+                                    ))}
+                                    </SelectContent>
+                                </Select>
+                            </div>
+                        </div>
+                    </div>
+                </PopoverContent>
+            </Popover>
+        </div>
+    </Card>
   );
 }
+
