@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import AppLayout from "@/components/app-layout";
 import QuestionForm from "@/components/question-form";
 import type { ChatSession, QAPair } from "@/types";
@@ -30,10 +30,35 @@ export default function Home() {
     const { user } = useAuth();
     const { toast } = useToast();
     const [isMounted, setIsMounted] = useState(false);
+    const prevCurrentSessionRef = useRef<ChatSession | null>(null);
 
     useEffect(() => {
         setIsMounted(true);
     }, []);
+
+    // Effect to auto-save session to history
+    useEffect(() => {
+        if (currentSession && currentSession.messages?.length > 0) {
+             // Deep comparison to avoid saving on every render
+            if (JSON.stringify(currentSession) !== JSON.stringify(prevCurrentSessionRef.current)) {
+                const existingIndex = history.findIndex(s => s && s.id === currentSession.id);
+                let updatedHistory;
+
+                if (existingIndex > -1) {
+                    // Update existing session
+                    updatedHistory = [...history];
+                    updatedHistory[existingIndex] = currentSession;
+                } else {
+                    // Add new session to the start of the history
+                    updatedHistory = [currentSession, ...history];
+                }
+                setHistory(updatedHistory.filter(Boolean));
+            }
+        }
+        // Update the ref for the next render
+        prevCurrentSessionRef.current = currentSession;
+    }, [currentSession, history, setHistory]);
+
 
     const getAvatarFallback = () => {
         if (user?.displayName) {
@@ -160,17 +185,7 @@ export default function Home() {
     };
     
     const startNewSession = () => {
-        if (currentSession && currentSession.messages?.length > 0) {
-            const existingIndex = history.findIndex(s => s && s.id === currentSession.id);
-            let updatedHistory;
-            if (existingIndex > -1) {
-                updatedHistory = [...history];
-                updatedHistory[existingIndex] = currentSession;
-            } else {
-                 updatedHistory = [currentSession, ...history];
-            }
-             setHistory(updatedHistory.filter(Boolean));
-        }
+        // The useEffect hook now handles saving, so this function can be simplified.
         setCurrentSession(null);
         toast({
             title: "Sesi Baru Dimulai",
@@ -247,7 +262,7 @@ export default function Home() {
                                                     )}
                                                 </CardContent>
                                             </Card>
-                                            {message.type === 'ai' && (
+                                            {message.type === 'ai' && message.content !== '...' && (
                                                  <div className="mt-2 flex items-center gap-2">
                                                     <Button variant="outline" size="sm" onClick={() => handleCopy(message.item.answer)}>
                                                         <Copy className="mr-2 h-4 w-4" />
@@ -277,7 +292,3 @@ export default function Home() {
             </div>
         </AppLayout>
     );
-
-    
-
-    
